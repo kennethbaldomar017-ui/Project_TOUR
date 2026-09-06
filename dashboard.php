@@ -1,6 +1,11 @@
 <?php
 require_once 'config.php';
 $currentUser = require_login($conn);
+
+if (is_admin_role($currentUser['role'])) {
+    header('Location: admin_dashboard.php');
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -28,9 +33,6 @@ $currentUser = require_login($conn);
                 echo !empty($fullName) ? 'Hello, ' . $fullName : 'Hello, ' . htmlspecialchars($_SESSION['identifier']); 
             ?>!</p>
             <p>You have successfully logged in. This is your secure dashboard where you can manage your profile and settings.</p>
-            <?php if (is_admin_role($currentUser['role'])): ?>
-                <p><a class="muted-link" href="admin_users.php">Open user management</a></p>
-            <?php endif; ?>
         </div>
     </main>
 
