@@ -14,12 +14,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <nav class="top-nav">
             <?php if(isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true): ?>
                 <!-- Logged in user - show Dashboard and Logout -->
-                <a href="dashboard.php" class="<?= $current_page == 'dashboard.php' ? 'active' : '' ?>">Dashboard</a>
                 <?php if(isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'superadmin'], true)): ?>
-                    <a href="admin_users.php" class="<?= $current_page == 'admin_users.php' ? 'active' : '' ?>">Users</a>
-                <?php endif; ?>
-                <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin'): ?>
-                    <a href="audit_logs.php" class="<?= $current_page == 'audit_logs.php' ? 'active' : '' ?>">Audit Logs</a>
+                    <a href="admin_dashboard.php">Admin Dashboard</a>
+                <?php else: ?>
+                    <a href="dashboard.php" class="<?= $current_page == 'dashboard.php' ? 'active' : '' ?>">Dashboard</a>
                 <?php endif; ?>
                 <a href="logout.php">Log Out</a>
             <?php else: ?>
