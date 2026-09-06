@@ -6,6 +6,7 @@
     <title>Register | PRIME.</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="js/validation.js" defer></script>
+    <script src="js/confirm.js" defer></script>
 </head>
 <body>
     <?php include 'header.php'; ?>
@@ -33,6 +34,7 @@
             </div>
 
             <form id="registerForm" action="signup_process.php" method="post" novalidate>
+                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()); ?>">
                 
                 <!-- Step 1: Personal Information -->
                 <div class="form-step active" id="step1">
@@ -193,7 +195,10 @@
                                         <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
                                         <option value="What was the name of your first pet?">What was the name of your first pet?</option>
                                     </select>
-                                    <input type="text" name="auth_a1" placeholder="Your answer" required>
+                                    <div class="password-wrapper">
+                                        <input type="password" name="auth_a1" placeholder="Your answer" autocomplete="off" required>
+                                        <span class="toggle-pwd-icon">&#128065;</span>
+                                    </div>
                                 </div>
                                 <div class="span-2 security-question-group1">
                                     <label>Security Question 2 <span class="req1">*</span></label>
@@ -202,7 +207,10 @@
                                         <option value="What is your favorite book?">What is your favorite book?</option>
                                         <option value="What city were you born in?">What city were you born in?</option>
                                     </select>
-                                    <input type="text" name="auth_a2" placeholder="Your answer" required>
+                                    <div class="password-wrapper">
+                                        <input type="password" name="auth_a2" placeholder="Your answer" autocomplete="off" required>
+                                        <span class="toggle-pwd-icon">&#128065;</span>
+                                    </div>
                                 </div>
                                 <div class="span-2 security-question-group1">
                                     <label>Security Question 3 <span class="req1">*</span></label>
@@ -211,7 +219,10 @@
                                         <option value="What is your favorite food?">What is your favorite food?</option>
                                         <option value="What was your childhood nickname?">What was your childhood nickname?</option>
                                     </select>
-                                    <input type="text" name="auth_a3" placeholder="Your answer" required>
+                                    <div class="password-wrapper">
+                                        <input type="password" name="auth_a3" placeholder="Your answer" autocomplete="off" required>
+                                        <span class="toggle-pwd-icon">&#128065;</span>
+                                    </div>
                                 </div>
                             </div>
                         </fieldset>
@@ -219,7 +230,7 @@
                     
                     <div class="step-buttons">
                         <button type="button" onclick="prevStep(3)">← Back</button>
-                        <button type="submit" id="registerBtn">Create Account</button>
+                        <button type="submit" id="registerBtn" class="btn btn-primary btn-block">Create Account</button>
                     </div>
                 </div>
             </form>
@@ -608,8 +619,8 @@
         document.getElementById('password')?.addEventListener('blur', function() {
             const password = this.value.trim();
             
-            if (password.length < 8 || password.length > 16) {
-                showFieldError(this, 'Password must be 8-16 characters');
+            if (password.length < 8 || password.length > 64) {
+                showFieldError(this, 'Password must be 8-64 characters');
             } else {
                 clearFieldError(this);
             }

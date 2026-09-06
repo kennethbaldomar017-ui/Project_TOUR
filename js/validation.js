@@ -305,53 +305,6 @@ function validateName(name, fieldName) {
         emailField.addEventListener('blur', function() { checkEmailExists(this.value.trim(), this); });
     }
 
-    // Password uniqueness check
-    const passwordField = document.getElementById('password');
-    if (passwordField) {
-        async function checkPasswordExists(value, element) {
-            console.log('Checking password existence for:', value); // Debug log
-            delete element.dataset.passwordExists;
-            if (!value || value.length < 8 || value.length > 16) {
-                // invalid length — let other validation handle it
-                return;
-            }
-
-            try {
-                const res = await fetch('check_password.php?password=' + encodeURIComponent(value), {cache: 'no-store'});
-                const data = await res.json();
-                console.log('Password check result:', data); // Debug log
-                if (data.ok) {
-                    if (data.exists) {
-                        element.dataset.passwordExists = '1';
-                        element.classList.add('input-error-field');
-                        let errorElement = element.parentElement.querySelector('.field-error');
-                        if (!errorElement) {
-                            errorElement = document.createElement('div');
-                            errorElement.className = 'field-error';
-                            element.parentElement.appendChild(errorElement);
-                        }
-                        errorElement.textContent = 'Password already exists';
-                    } else {
-                        element.dataset.passwordExists = '0';
-                        // Only clear error if it's a password existence error
-                        const existingError = element.parentElement.querySelector('.field-error');
-                        if (existingError && existingError.textContent === 'Password already exists') {
-                            element.classList.remove('input-error-field');
-                            existingError.remove();
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error('Password check error:', e); // Debug log
-                delete element.dataset.passwordExists;
-            }
-        }
-
-        const debouncedPassword = debounce(function() { checkPasswordExists(this.value.trim(), this); }, 200);
-        passwordField.addEventListener('input', debouncedPassword);
-        passwordField.addEventListener('blur', function() { checkPasswordExists(this.value.trim(), this); });
-    }
-
     // Login form validation - username/identifier and password length (8-16 characters)
     const loginIdentifier = document.getElementById('login_identifier');
     const loginPassword = document.getElementById('login_password');
@@ -360,11 +313,12 @@ function validateName(name, fieldName) {
         if (!value || value.trim() === '') {
             return fieldName + ' is required';
         }
-        
-        if (value.length < 8 || value.length > 16) {
-            return fieldName + ' must be 8-16 characters long';
+
+        const maxLength = fieldName === 'Password' ? 64 : 16;
+        if (value.length < 8 || value.length > maxLength) {
+            return fieldName + ' must be 8-' + maxLength + ' characters long';
         }
-        
+
         return true;
     }
     
@@ -392,19 +346,20 @@ function validateName(name, fieldName) {
     if (loginPassword) {
         loginPassword.addEventListener('blur', function() {
             const validation = validateLoginField(this.value, 'Password');
+            const fieldContainer = this.parentElement.parentElement;
             
             if (validation !== true) {
                 this.classList.add('input-error-field');
-                let errorElement = this.parentElement.querySelector('.field-error');
+                let errorElement = fieldContainer.querySelector('.field-error');
                 if (!errorElement) {
                     errorElement = document.createElement('div');
                     errorElement.className = 'field-error';
-                    this.parentElement.appendChild(errorElement);
+                    fieldContainer.appendChild(errorElement);
                 }
                 errorElement.textContent = validation;
             } else {
                 this.classList.remove('input-error-field');
-                const errorElement = this.parentElement.querySelector('.field-error');
+                const errorElement = fieldContainer.querySelector('.field-error');
                 if (errorElement) errorElement.remove();
             }
         });

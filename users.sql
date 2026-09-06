@@ -46,7 +46,7 @@ CREATE TABLE `users` (
   `email` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
   `role` enum('user','admin','superadmin') NOT NULL DEFAULT 'user',
-  `status` enum('active','deactivated') NOT NULL DEFAULT 'active',
+  `status` enum('pending','active','deactivated') NOT NULL DEFAULT 'pending',
   `deactivation_duration` enum('1_month','3_months','6_months','manual') DEFAULT NULL,
   `deactivated_until` datetime DEFAULT NULL,
   `status_reason` varchar(255) DEFAULT NULL,
@@ -57,6 +57,7 @@ CREATE TABLE `users` (
   `auth_a2` varchar(255) DEFAULT NULL,
   `auth_q3` varchar(255) DEFAULT NULL,
   `auth_a3` varchar(255) DEFAULT NULL,
+  `must_change_password` tinyint(1) NOT NULL DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -92,6 +93,43 @@ CREATE TABLE `audit_logs` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_privileges`
+--
+
+CREATE TABLE `user_privileges` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `privilege` varchar(40) NOT NULL,
+  `granted_by` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Indexes for table `user_privileges`
+--
+ALTER TABLE `user_privileges`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_user_privilege` (`user_id`,`privilege`),
+  ADD KEY `idx_priv_user` (`user_id`);
+
+ALTER TABLE `user_privileges`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+-- --------------------------------------------------------
+
+CREATE TABLE `otp_tokens` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `token_hash` varchar(255) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `attempts` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `used_at` datetime DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 --
 -- Indexes for dumped tables
 --
@@ -116,6 +154,14 @@ ALTER TABLE `audit_logs`
   ADD KEY `idx_audit_created` (`created_at`);
 
 --
+-- Indexes for table `otp_tokens`
+--
+ALTER TABLE `otp_tokens`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_otp_user` (`user_id`),
+  ADD KEY `idx_otp_expiry` (`expires_at`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
 
@@ -129,6 +175,9 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `audit_logs`
 --
 ALTER TABLE `audit_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `otp_tokens`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 COMMIT;
 

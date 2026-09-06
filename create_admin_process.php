@@ -3,6 +3,7 @@ require_once 'config.php';
 
 $actor = require_superadmin($conn);
 verify_csrf();
+require_actor_confirmation($conn, $actor);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -10,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 function clean_admin_value($value): string {
-    return trim(htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'));
+    return trim((string)$value);
 }
 
 $idNumber = clean_admin_value($_POST['id_number'] ?? '');
@@ -18,8 +19,6 @@ $firstName = clean_admin_value($_POST['first_name'] ?? '');
 $lastName = clean_admin_value($_POST['last_name'] ?? '');
 $email = clean_admin_value($_POST['email'] ?? '');
 $username = clean_admin_value($_POST['username'] ?? '');
-$password = $_POST['password'] ?? '';
-$confirmPassword = $_POST['confirm_password'] ?? '';
 $role = $_POST['role'] ?? ROLE_ADMIN;
 $reason = clean_admin_value($_POST['reason'] ?? '');
 
@@ -35,12 +34,6 @@ if (!preg_match('/^[A-Za-z0-9_.\-]{8,16}$/', $username)) {
 }
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     $errors[] = 'Invalid email format.';
-}
-if ($password !== $confirmPassword) {
-    $errors[] = 'Passwords do not match.';
-}
-if (strlen($password) < 8 || strlen($password) > 64) {
-    $errors[] = 'Password must be between 8 and 64 characters.';
 }
 if ($firstName === '' || $lastName === '') {
     $errors[] = 'First and last name are required.';
@@ -64,10 +57,11 @@ if ($errors) {
     exit;
 }
 
-$hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-$placeholderHash = password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
+$defaultPassword = generate_default_password();
+$hashedPassword = password_hash($defaultPassword, PASSWORD_DEFAULT);
+$oneTimeHash = password_hash((string)random_int(100000, 999999), PASSWORD_DEFAULT);
 $birthdate = date('Y-m-d', strtotime('-18 years'));
-$age = 18;
+$age = '18';
 $middleName = '';
 $extension = '';
 $street = 'Admin Office';
@@ -76,6 +70,7 @@ $city = 'Admin';
 $province = 'Admin';
 $country = 'Philippines';
 $zip = '0000';
+$mustChange = '1';
 $question = 'Created by superadmin';
 
 try {
@@ -83,12 +78,13 @@ try {
     $stmt = $conn->prepare('INSERT INTO users (
         id_number, first_name, middle_name, last_name, extension, birthdate, age,
         street, barangay, city, province, country, zip,
-        email, username, password, role, status,
+        email, username, password, role, status, must_change_password,
         auth_q1, auth_a1, auth_q2, auth_a2, auth_q3, auth_a3
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     $status = STATUS_ACTIVE;
+    $types = str_repeat('s', 25);
     $stmt->bind_param(
-        'ssssssisssssssssssssssss',
+        $types,
         $idNumber,
         $firstName,
         $middleName,
@@ -107,16 +103,21 @@ try {
         $hashedPassword,
         $role,
         $status,
+        $mustChange,
         $question,
-        $placeholderHash,
+        $oneTimeHash,
         $question,
-        $placeholderHash,
+        $oneTimeHash,
         $question,
-        $placeholderHash
+        $oneTimeHash
     );
     $stmt->execute();
     $newId = $stmt->insert_id;
     $stmt->close();
+
+    if ($role === ROLE_ADMIN) {
+        grant_default_privileges($conn, (int)$newId, $role);
+    }
 
     $target = [
         'id' => $newId,
@@ -124,12 +125,18 @@ try {
         'role' => $role,
         'status' => STATUS_ACTIVE,
     ];
-    if (!log_audit_action($conn, $actor, $target, 'account_creation', null, STATUS_ACTIVE, null, null, $reason ?: null)) {
+    if (!log_audit_action($conn, $actor, $target, 'account_creation', null, STATUS_ACTIVE, null, null, $reason ?: 'Created with temporary password')) {
         throw new RuntimeException('Could not write audit log.');
     }
     $conn->commit();
-    $_SESSION['success'] = ucfirst($role) . ' account created.';
-    header('Location: admin_users.php');
+
+    $_SESSION['generated_password'] = $defaultPassword;
+    $_SESSION['generated_account'] = [
+        'username' => $username,
+        'id_number' => $idNumber,
+        'role' => $role,
+    ];
+    header('Location: create_admin_result.php');
     exit;
 } catch (Throwable $e) {
     @$conn->rollback();
@@ -137,4 +144,3 @@ try {
     header('Location: create_admin.php');
     exit;
 }
-?>

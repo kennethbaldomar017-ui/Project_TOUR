@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home | PRIME.</title>
+    <title>Home | PRIME TechBuild</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -20,13 +20,13 @@
     <main class="container auth-page home-shell">
         <div class="auth-card hero-card">
             <div class="hero-section">
-                <h1>Welcome to PRIME.</h1>
-                <p>Your secure platform for identity management and authentication</p>
+                <h1>PRIME TechBuild</h1>
+                <p>Inventory, buying, and PC build planning for computer parts shops.</p>
                 
                 <?php if(isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true): ?>
                     <div>
                         <a href="dashboard.php" style="text-decoration: none;">
-                            <button>Go to Dashboard</button>
+                            <button>Open Tech Dashboard</button>
                         </a>
                     </div>
                 <?php else: ?>

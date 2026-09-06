@@ -1,6 +1,7 @@
 <?php
 require_once 'config.php';
-$actor = require_superadmin($conn);
+$actor = require_login($conn);
+$canCreateAdmin = $actor['role'] === ROLE_SUPERADMIN;
 $token = csrf_token();
 ?>
 <!DOCTYPE html>
@@ -17,18 +18,30 @@ $token = csrf_token();
     <?php if(isset($_SESSION['form_error'])): ?>
         <div class="form-errors" id="alertBox"><?= e($_SESSION['form_error']); unset($_SESSION['form_error']); ?></div>
     <?php endif; ?>
+    <?php if(isset($_SESSION['success'])): ?>
+        <div class="form-success" id="alertBox"><?= e($_SESSION['success']); unset($_SESSION['success']); ?></div>
+    <?php endif; ?>
 
     <main class="container auth-page">
         <div class="auth-card admin-create-card">
             <h2>Create Admin</h2>
             <p class="auth-subtitle">Superadmin-only account creation</p>
 
-            <form action="create_admin_process.php" method="post" onsubmit="return confirm('Create this admin account?');">
+            <?php if (!$canCreateAdmin): ?>
+                <div class="permission-empty-page">
+                    <p>Your account can see this area, but only a superadmin can create administrator accounts.</p>
+                    <div class="empty-state"><strong>Account creation unavailable</strong><span>Ask a superadmin to create an administrator account.</span></div>
+                </div>
+            <?php else: ?>
+            <form action="create_admin_process.php" method="post"
+                  class="js-confirm"
+                  data-confirm-title="Create this account?"
+                  data-confirm-message="A temporary password will be generated, shown once, and handed to the new administrator. They must change it and set their own security questions on first login.">
                 <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
                 <div class="form-grid">
                     <div>
                         <label>ID Number <span class="req">*</span></label>
-                        <input type="text" name="id_number" required pattern="[0-9]{4}-[0-9]{4}" placeholder="2026-0001">
+                        <input type="text" name="id_number" required pattern="[0-9]{4}-[0-9]{4}" title="Format: 4 digits - 4 digits" placeholder="2026-0001">
                     </div>
                     <div>
                         <label>Role <span class="req">*</span></label>
@@ -53,27 +66,24 @@ $token = csrf_token();
                         <label>Username <span class="req">*</span></label>
                         <input type="text" name="username" required minlength="8" maxlength="16" pattern="[A-Za-z0-9_.\-]{8,16}">
                     </div>
-                    <div>
-                        <label>Password <span class="req">*</span></label>
-                        <input type="password" name="password" required minlength="8" maxlength="64">
-                    </div>
-                    <div>
-                        <label>Confirm Password <span class="req">*</span></label>
-                        <input type="password" name="confirm_password" required minlength="8" maxlength="64">
-                    </div>
                     <div class="span-2">
                         <label>Reason or comment</label>
                         <textarea name="reason" rows="2" placeholder="Optional"></textarea>
                     </div>
                 </div>
+                <div class="admin-note">
+                    No password or security questions are required here. A secure temporary password is generated automatically, shown once, and the new administrator must change it and create their own security questions when they next log in.
+                </div>
                 <div class="step-buttons">
                     <a class="muted-link" href="admin_users.php">Back to users</a>
-                    <button type="submit">Create Account</button>
+                    <button type="submit" class="btn btn-primary btn-block">Create Account</button>
                 </div>
             </form>
+            <?php endif; ?>
         </div>
     </main>
 
     <?php include 'footer.php'; ?>
+    <?php include 'confirm_modal.php'; ?>
 </body>
 </html>

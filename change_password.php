@@ -1,12 +1,18 @@
 <?php
 // change_password.php
-session_start();
 require_once 'db_connect.php';
 require_once 'config.php';
 
 if(empty($_SESSION['pwd_reset_user'])) {
     header('Location: login.php');
     exit;
+}
+
+if (empty($_SESSION['pwd_reset_started']) || time() - (int)$_SESSION['pwd_reset_started'] > 900) {
+  unset($_SESSION['pwd_reset_user'], $_SESSION['pwd_reset_started']);
+  $_SESSION['form_error'] = 'Your password reset session expired. Please start again.';
+  header('Location: forgot_password.php');
+  exit;
 }
 
 $uid = (int)$_SESSION['pwd_reset_user'];
@@ -30,6 +36,7 @@ if ($uid > 0) {
 }
 
 if($_SERVER['REQUEST_METHOD'] === 'POST') {
+  verify_csrf();
     $pwd = $_POST['password'] ?? '';
     $pwd2 = $_POST['confirm_password'] ?? '';
     
@@ -39,8 +46,8 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     
-    if(strlen($pwd) < 8) {
-        $_SESSION['form_error'] = 'Password must be at least 8 characters long';
+    if(strlen($pwd) < 8 || strlen($pwd) > 64) {
+      $_SESSION['form_error'] = 'Password must be between 8 and 64 characters long';
         header('Location: change_password.php');
         exit;
     }
@@ -50,7 +57,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param('si', $hash, $uid);
     $stmt->execute();
     
-    unset($_SESSION['pwd_reset_user']);
+    unset($_SESSION['pwd_reset_user'], $_SESSION['pwd_reset_started']);
     $_SESSION['success'] = 'Password successfully changed. Please login with your new password.';
     header('Location: login.php');
     exit;
@@ -89,17 +96,18 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div>
             <label style="display: block; font-size: 11px; color: #64748b; margin-bottom: 2px;">ID Number</label>
-            <p style="margin: 0; font-weight: 600; color: #0f172a;"><?= htmlspecialchars($user_data['id_number']) ?></p>
+            <p style="margin: 0; font-weight: 600; color: #0f172a;"><?= htmlspecialchars(mask_id_number($user_data['id_number'])) ?></p>
           </div>
           <div>
             <label style="display: block; font-size: 11px; color: #64748b; margin-bottom: 2px;">Username</label>
-            <p style="margin: 0; font-weight: 600; color: #0f172a;"><?= htmlspecialchars($user_data['username']) ?></p>
+            <p style="margin: 0; font-weight: 600; color: #0f172a;"><?= htmlspecialchars(mask_value((string)($user_data['username'] ?? ''))) ?></p>
           </div>
         </div>
       </div>
     <?php endif; ?>
 
     <form method="post" action="change_password.php">
+      <input type="hidden" name="csrf_token" value="<?= e(csrf_token()); ?>">
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
         <div>
           <label>New Password <span class="req">*</span></label>
@@ -122,7 +130,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
       
       <div class="step-buttons">
         <a href="forgot_password.php?step=questions&user=<?= urlencode($_GET['user'] ?? '') ?>" class="back-button" style="padding: 8px 12px; text-decoration: none; border-radius: 4px;">Back</a>
-        <button type="submit" id="submitBtn">Change Password</button>
+        <button type="submit" id="submitBtn" class="btn btn-primary btn-block">Change Password</button>
       </div>
     </form>
   </div>

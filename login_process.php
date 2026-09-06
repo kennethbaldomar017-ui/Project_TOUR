@@ -1,6 +1,6 @@
 <?php
-session_start();
 require_once 'config.php';
+verify_csrf();
 
 // Debug: Check if session is working
 if (session_status() !== PHP_SESSION_ACTIVE) {
@@ -24,8 +24,8 @@ if (strlen($identifier) < 8 || strlen($identifier) > 16) {
     exit();
 }
 
-if (strlen($password) < 8 || strlen($password) > 16) {
-    $_SESSION['form_error'] = "Password must be 8-16 characters long.";
+if (strlen($password) < 8 || strlen($password) > 64) {
+    $_SESSION['form_error'] = "Password must be 8-64 characters long.";
     header('Location: login.php');
     exit();
 }
@@ -38,7 +38,7 @@ if (!empty($_SESSION['lock_until']) && time() < $_SESSION['lock_until']) {
 }
 
 // Prepare statement to check if user exists and get their account state
-$stmt = $conn->prepare("SELECT id, username, password, first_name, last_name, role, status, deactivated_until FROM users WHERE id_number = ? OR username = ? LIMIT 1");
+$stmt = $conn->prepare("SELECT id, username, password, first_name, last_name, role, status, deactivated_until, must_change_password FROM users WHERE id_number = ? OR username = ? LIMIT 1");
 if (!$stmt) {
     $_SESSION['form_error'] = "Database error. Please try again.";
     header('Location: login.php');
@@ -76,6 +76,8 @@ if ($result->num_rows === 1) {
             unset($_SESSION['failed_logins'][$identifier]);
         }
 
+        session_regenerate_id(true);
+
         // Set session variables
         $_SESSION['user_id'] = $user_id;
         $_SESSION['identifier'] = $identifier;
@@ -86,6 +88,8 @@ if ($result->num_rows === 1) {
         // Store user's full name in session
         $_SESSION['first_name'] = $first_name;
         $_SESSION['last_name'] = $last_name;
+
+        log_audit_action($conn, $row, $row, 'login_success', null, STATUS_ACTIVE, null, null, 'Successful login');
 
         // Remove any lockout
         if (isset($_SESSION['lock_until'])) {
@@ -113,6 +117,13 @@ if ($result->num_rows === 1) {
         
         // Clear localStorage on successful login
         echo '<script>localStorage.removeItem("lockoutRemaining");</script>';
+        
+        // Accounts created with a temporary password must set their own first.
+        if (!empty($row['must_change_password'])) {
+            $_SESSION['force_pwd_change'] = true;
+            header('Location: edit_info.php');
+            exit();
+        }
         
         // Force immediate redirect
         header('Location: dashboard.php');
@@ -166,6 +177,7 @@ if ($result->num_rows === 1) {
             echo '<script>localStorage.setItem("lockoutRemaining", ' . intval($lockout_remaining) . ');</script>';
         }
         
+        log_audit_action($conn, $row, $row, 'login_failed', $status, $status, null, null, 'Invalid password');
         $_SESSION['show_forgot_for'] = $post_identifier;
         $_SESSION['form_error'] = 'Invalid username or password.';
         header('Location: login.php');
@@ -220,6 +232,7 @@ if ($result->num_rows === 1) {
         echo '<script>localStorage.setItem("lockoutRemaining", ' . intval($lockout_remaining) . ');</script>';
     }
     
+    log_audit_action($conn, null, null, 'login_failed', null, null, null, null, 'Unknown account: ' . $post_identifier);
     $_SESSION['show_forgot_for'] = $post_identifier;
     $_SESSION['form_error'] = 'Invalid username or password.';
     header('Location: login.php');

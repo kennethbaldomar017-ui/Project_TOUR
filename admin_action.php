@@ -3,6 +3,7 @@ require_once 'config.php';
 
 $actor = require_admin($conn);
 verify_csrf();
+require_actor_confirmation($conn, $actor);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -26,7 +27,7 @@ $allowedDurations = ['1_month', '3_months', '6_months', 'manual'];
 
 try {
     if ($action === 'activate') {
-        if (!can_manage_account($actor, $target, 'activate')) {
+        if (!can_manage_account($conn, $actor, $target, 'activate')) {
             log_audit_action($conn, $actor, $target, 'failed_authorization', $target['status'], $target['status'], null, null, 'Activation denied');
             throw new RuntimeException('You are not allowed to activate this account.');
         }
@@ -40,12 +41,12 @@ try {
             throw new RuntimeException('Could not write audit log.');
         }
         $conn->commit();
-        $_SESSION['success'] = 'Account activated.';
+        $_SESSION['success'] = $target['status'] === STATUS_PENDING ? 'Registration approved. Account activated.' : 'Account activated.';
     } elseif ($action === 'deactivate') {
         if (!in_array($duration, $allowedDurations, true)) {
             throw new RuntimeException('Choose a valid deactivation duration.');
         }
-        if (!can_manage_account($actor, $target, 'deactivate')) {
+        if (!can_manage_account($conn, $actor, $target, 'deactivate')) {
             log_audit_action($conn, $actor, $target, 'failed_authorization', $target['status'], $target['status'], $duration, null, 'Deactivation denied');
             throw new RuntimeException('You are not allowed to deactivate this account.');
         }
@@ -63,9 +64,18 @@ try {
         $conn->commit();
         $_SESSION['success'] = 'Account deactivated for ' . duration_label($duration) . '.';
     } elseif ($action === 'delete') {
-        if (!can_manage_account($actor, $target, 'delete')) {
+        if (!can_manage_account($conn, $actor, $target, 'delete')) {
             log_audit_action($conn, $actor, $target, 'failed_authorization', $target['status'], $target['status'], null, null, 'Deletion denied');
             throw new RuntimeException('You are not allowed to delete this account.');
+        }
+
+        if ($actor['role'] === ROLE_ADMIN) {
+            if (!log_audit_action($conn, $actor, $target, 'delete_requested', $target['status'], $target['status'], null, null, $reason)) {
+                throw new RuntimeException('Could not write the deletion request.');
+            }
+            $_SESSION['success'] = 'Deletion request sent to the superadmin for review.';
+            header('Location: admin_users.php');
+            exit;
         }
 
         $conn->begin_transaction();
@@ -79,7 +89,7 @@ try {
         $conn->commit();
         $_SESSION['success'] = 'Account deleted.';
     } elseif ($action === 'role_change') {
-        if ($actor['role'] !== ROLE_SUPERADMIN || !can_manage_account($actor, $target, 'role_change') || !in_array($newRole, [ROLE_USER, ROLE_ADMIN, ROLE_SUPERADMIN], true)) {
+        if (!can_manage_account($conn, $actor, $target, 'role_change') || !in_array($newRole, [ROLE_USER, ROLE_ADMIN, ROLE_SUPERADMIN], true)) {
             log_audit_action($conn, $actor, $target, 'failed_authorization', $target['status'], $target['status'], null, null, 'Role change denied');
             throw new RuntimeException('You are not allowed to change this role.');
         }

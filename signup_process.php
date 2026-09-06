@@ -1,5 +1,6 @@
 <?php
 require_once "config.php";
+verify_csrf();
 
 function clean($v) {
     return trim(htmlspecialchars($v, ENT_QUOTES, 'UTF-8'));
@@ -229,6 +230,8 @@ $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 $ha1 = password_hash($auth_a1, PASSWORD_DEFAULT);
 $ha2 = password_hash($auth_a2, PASSWORD_DEFAULT);
 $ha3 = password_hash($auth_a3, PASSWORD_DEFAULT);
+$role = ROLE_USER;
+$account_status = STATUS_PENDING;
 
 // Use the selected questions (not hardcoded)
 $aq1 = $question1;
@@ -238,11 +241,17 @@ $aq3 = $question3;
 $ins = $conn->prepare('INSERT INTO users (
     id_number, first_name, middle_name, last_name, extension, birthdate, age,
     street, barangay, city, province, country, zip,
-    email, username, password, auth_q1, auth_a1, auth_q2, auth_a2, auth_q3, auth_a3
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    email, username, password, role, status, auth_q1, auth_a1, auth_q2, auth_a2, auth_q3, auth_a3
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+
+if (!$ins) {
+    $_SESSION['error'] = 'Database error while preparing registration. Please try again.';
+    header('Location: sign.php');
+    exit;
+}
 
 $ins->bind_param(
-    'ssssssssssssssssssssss',
+    'ssssssisssssssssssssssss',
     $id_number,
     $first_name,
     $middle_name,
@@ -259,6 +268,8 @@ $ins->bind_param(
     $email,
     $username,
     $hashed_password,
+    $role,
+    $account_status,
     $aq1,
     $ha1,
     $aq2,
@@ -268,7 +279,7 @@ $ins->bind_param(
 );
 
 if ($ins->execute()) {
-    $_SESSION['success'] = 'Registration successful! Please login.';
+    $_SESSION['success'] = 'Registration submitted. An administrator must approve your account before you can log in.';
     header('Location: login.php');
 } else {
     $_SESSION['error'] = 'Database error: ' . $conn->error;

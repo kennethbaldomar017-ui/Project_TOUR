@@ -29,7 +29,7 @@ if (isset($_SESSION['failed_logins'])) {
     <title>Login | PRIME.</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="js/validation.js" defer></script>
-    <script src="js/security.js" defer></script>
+    <script src="js/confirm.js" defer></script>
 </head>
 <body>
 <?php include 'header.php'; ?>
@@ -48,6 +48,7 @@ if (isset($_SESSION['failed_logins'])) {
         <p class="auth-subtitle">Welcome back. Please sign in to continue.</p>
 
         <form id="loginForm" method="post" action="login_process.php" novalidate>
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()); ?>">
             <div>
                 <label>ID Number or Username <span class="req">*</span></label>
                 <input type="text" name="identifier" id="login_identifier" placeholder="Enter ID or Username" required <?php if ($lockout_remaining > 0) echo 'disabled'; ?>>
@@ -56,8 +57,8 @@ if (isset($_SESSION['failed_logins'])) {
             <div>
                 <label>Password <span class="req">*</span></label>
                 <div class="password-wrapper">
-                    <input type="password" name="password" id="login_password" required placeholder="Enter your password" <?php if ($lockout_remaining > 0) echo 'disabled'; ?>>
-                    <span class="toggle-pwd-icon" onclick="togglePasswordIcon('login_password', this)">👁️</span>
+                    <input type="password" name="password" id="login_password" required placeholder="Enter your password" autocomplete="current-password" <?php if ($lockout_remaining > 0) echo 'disabled'; ?>>
+                    <span class="toggle-pwd-icon">👁️</span>
                 </div>
             </div>
 
@@ -66,7 +67,7 @@ if (isset($_SESSION['failed_logins'])) {
                 <label for="remember_me" class="remember-me-label">Remember me</label>
             </div>
 
-            <button type="submit" id="loginBtn" <?php if ($lockout_remaining > 0) echo 'disabled'; ?>>Log in</button>
+            <button type="submit" id="loginBtn" class="btn btn-primary btn-block" <?php if ($lockout_remaining > 0) echo 'disabled'; ?>>Log in</button>
             <div id="errorCount" style="font-size: 12px; margin-top: 8px; text-align: center; color: #f57c00; <?php echo ($lockout_remaining > 0 || $failed_count < 2) ? 'display: none;' : ''; ?>">
                 Failed attempts: <?= $failed_count; ?> (<?= 3 - ($failed_count % 3); ?> more before lockout)
             </div>
@@ -187,17 +188,6 @@ function enableHeaderRegisterButton() {
     }
     updateTimer();
 <?php endif; ?>
-
-function togglePasswordIcon(fieldId, iconElement) {
-    const field = document.getElementById(fieldId);
-    if (field.type === 'password') {
-        field.type = 'text';
-        iconElement.textContent = '👁️‍🗨️';
-    } else {
-        field.type = 'password';
-        iconElement.textContent = '👁️';
-    }
-}
 </script>
 </body>
 </html>
