@@ -9,7 +9,7 @@ $roleFilter = trim($_GET['role'] ?? '');
 $monthFilter = trim($_GET['month'] ?? '');
 $dateFilter = trim($_GET['date'] ?? '');
 $page = max(1, (int)($_GET['page'] ?? 1));
-$perPage = 25;
+$perPage = 10;
 
 $where = [];
 $params = [];
@@ -88,24 +88,6 @@ if ($actionResult) {
     }
 }
 
-$failedLoginAccounts = [];
-$failedLoginSql = "SELECT COALESCE(actor_username, target_username) AS account_name,
-        COALESCE(actor_role, target_role) AS account_role,
-        COUNT(*) AS attempts, MAX(created_at) AS last_attempt
-        FROM audit_logs
-        WHERE action = 'login_failed'
-          AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-          AND (actor_username IS NOT NULL OR target_username IS NOT NULL)";
-if ($actor['role'] === ROLE_ADMIN) {
-    $failedLoginSql .= " AND COALESCE(actor_role, target_role) IN ('admin', 'user')";
-}
-$failedLoginSql .= " GROUP BY account_name, account_role HAVING COUNT(*) >= 3 ORDER BY attempts DESC, last_attempt DESC LIMIT 10";
-if ($canViewAuditLogs) {
-    $failedLoginResult = $conn->query($failedLoginSql);
-    if ($failedLoginResult) {
-        $failedLoginAccounts = $failedLoginResult->fetch_all(MYSQLI_ASSOC);
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -138,29 +120,6 @@ if ($canViewAuditLogs) {
                 </div>
                 <span class="page-count"><strong><?= number_format($totalLogs); ?></strong> events</span>
             </div>
-
-            <section class="failed-login-panel" aria-label="Repeated failed logins">
-                <div class="failed-login-heading">
-                    <div>
-                        <h3>Repeated failed logins</h3>
-                        <p>Accounts with three or more failed sign-in attempts in the last 24 hours.</p>
-                    </div>
-                    <span class="failed-login-window">Last 24 hours</span>
-                </div>
-                <?php if ($failedLoginAccounts): ?>
-                    <div class="failed-login-list">
-                        <?php foreach ($failedLoginAccounts as $failedLogin): ?>
-                            <div class="failed-login-row">
-                                <span class="failed-login-account"><strong><?= e($failedLogin['account_name']); ?></strong><small><?= e(ucfirst($failedLogin['account_role'] ?? 'account')); ?></small></span>
-                                <span class="failed-login-count"><?= number_format((int)$failedLogin['attempts']); ?> attempts</span>
-                                <time datetime="<?= e($failedLogin['last_attempt']); ?>">Last: <?= e($failedLogin['last_attempt']); ?></time>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php else: ?>
-                    <div class="failed-login-empty">No account has reached the repeated-failure threshold.</div>
-                <?php endif; ?>
-            </section>
 
             <form class="filter-bar" method="get">
                 <input type="search" name="search" value="<?= e($search); ?>" placeholder="Search actor, target, reason, IP">

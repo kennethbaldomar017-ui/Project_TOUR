@@ -29,7 +29,9 @@ if (in_array($statusFilter, [STATUS_PENDING, STATUS_ACTIVE, STATUS_DEACTIVATED],
     $types .= 's';
 }
 
-$sql = "SELECT id, id_number, username, first_name, last_name, email, role, status, deactivation_duration, deactivated_until, status_reason FROM users";
+$sql = "SELECT id, id_number, username, first_name, last_name, email, role, status, deactivation_duration, deactivated_until, status_reason,
+           CASE WHEN status = 'active' AND last_seen_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE) THEN 1 ELSE 0 END AS is_online
+    FROM users";
 if ($where) {
     $sql .= ' WHERE ' . implode(' AND ', $where);
 }
@@ -202,7 +204,22 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                                 </div>
                             </td>
                             <td><span class="badge role-<?= e($user['role']); ?>"><?= e(ucfirst($user['role'])); ?></span></td>
-                            <td><span class="badge status-<?= e($user['status']); ?>"><?= e(ucfirst($user['status'])); ?></span></td>
+                            <?php
+                                if ($user['status'] === STATUS_DEACTIVATED) {
+                                    $presenceLabel = 'Blocked';
+                                    $presenceClass = 'blocked';
+                                } elseif ($user['status'] !== STATUS_ACTIVE) {
+                                    $presenceLabel = ucfirst($user['status']);
+                                    $presenceClass = $user['status'];
+                                } elseif ((int)$user['is_online'] === 1) {
+                                    $presenceLabel = 'Active';
+                                    $presenceClass = 'active';
+                                } else {
+                                    $presenceLabel = 'Offline';
+                                    $presenceClass = 'offline';
+                                }
+                            ?>
+                            <td><span class="badge status-<?= e($presenceClass); ?>"><?= e($presenceLabel); ?></span></td>
                             <td>
                                 <?php if ($user['status'] === STATUS_DEACTIVATED): ?>
                                     <?= e(duration_label($user['deactivation_duration'])); ?>

@@ -1,4 +1,9 @@
-<?php require_once 'config.php'; ?>
+<?php
+require_once 'config.php';
+$registration_values = $_SESSION['registration_values'] ?? [];
+$registration_step = max(1, min(4, (int)($_SESSION['registration_step'] ?? 1)));
+unset($_SESSION['registration_values'], $_SESSION['registration_step']);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,7 +17,7 @@
     <?php include 'header.php'; ?>
 
     <main class="container auth-page">
-        <div class="auth-card">
+        <div class="auth-card registration-card">
             <h2>Create Account</h2>
             <p class="auth-subtitle">Join PRIME. today and secure your identity</p>
 
@@ -35,6 +40,7 @@
 
             <form id="registerForm" action="signup_process.php" method="post" novalidate>
                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()); ?>">
+                <input type="hidden" name="current_step" id="current_step" value="<?= $registration_step; ?>">
                 
                 <!-- Step 1: Personal Information -->
                 <div class="form-step active" id="step1">
@@ -88,7 +94,7 @@
                     
                     <div class="step-buttons">
                         <div></div>
-                        <button type="button" onclick="nextStep(2)">Next →</button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep(2)">Next →</button>
                     </div>
                 </div>
 
@@ -134,8 +140,8 @@
                     </div>
                     
                     <div class="step-buttons">
-                        <button type="button" onclick="prevStep(1)">← Back</button>
-                        <button type="button" onclick="nextStep(3)">Next →</button>
+                        <button type="button" class="btn btn-ghost" onclick="prevStep(1)">← Back</button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep(3)">Next →</button>
                     </div>
                 </div>
 
@@ -176,8 +182,8 @@
                     </div>
                     
                     <div class="step-buttons">
-                        <button type="button" onclick="prevStep(2)">← Back</button>
-                        <button type="button" onclick="nextStep(4)">Next →</button>
+                        <button type="button" class="btn btn-ghost" onclick="prevStep(2)">← Back</button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep(4)">Next →</button>
                     </div>
                 </div>
 
@@ -229,7 +235,7 @@
                     </div>
                     
                     <div class="step-buttons">
-                        <button type="button" onclick="prevStep(3)">← Back</button>
+                        <button type="button" class="btn btn-ghost" onclick="prevStep(3)">← Back</button>
                         <button type="submit" id="registerBtn" class="btn btn-primary btn-block">Create Account</button>
                     </div>
                 </div>
@@ -244,10 +250,11 @@
     <?php include 'footer.php'; ?>
 
     <script>
-        let currentStep = 1;
+        let currentStep = <?= $registration_step; ?>;
+        const registrationValues = <?= json_encode($registration_values, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
 
         function showStep(step) {
-            document.querySelectorAll('.form-step').forEach(stepEl => {
+            document.querySelectorAll('.form-step, .form-step1').forEach(stepEl => {
                 stepEl.classList.remove('active');
             });
             
@@ -263,7 +270,16 @@
             });
             
             currentStep = step;
+            document.getElementById('current_step').value = step;
         }
+
+        Object.entries(registrationValues).forEach(([fieldName, fieldValue]) => {
+            const field = document.querySelector(`[name="${fieldName}"]`);
+            if (field && field.type !== 'password') {
+                field.value = fieldValue;
+            }
+        });
+        showStep(currentStep);
 
         function nextStep(step) {
             if (validateStep(currentStep)) {

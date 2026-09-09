@@ -1,4 +1,4 @@
-<?php
+    <?php
 // config.php - Handle session management and global includes
 
 // Start session only if not already active

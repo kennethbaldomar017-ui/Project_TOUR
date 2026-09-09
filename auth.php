@@ -80,6 +80,9 @@ function ensure_rbac_schema(mysqli $conn): void {
     if (!isset($columns['must_change_password'])) {
         $alter[] = "ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0 AFTER status_changed_at";
     }
+    if (!isset($columns['last_seen_at'])) {
+        $alter[] = "ADD COLUMN last_seen_at DATETIME DEFAULT NULL AFTER must_change_password";
+    }
 
     if ($alter) {
         $conn->query('ALTER TABLE users ' . implode(', ', $alter));
@@ -121,6 +124,15 @@ function ensure_rbac_schema(mysqli $conn): void {
         KEY idx_audit_action (action),
         KEY idx_audit_created (created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS superadmin_lock (
+        lock_name VARCHAR(30) NOT NULL,
+        active_user_id INT(11) DEFAULT NULL,
+        session_id VARCHAR(255) DEFAULT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (lock_name)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+    $conn->query("INSERT IGNORE INTO superadmin_lock (lock_name) VALUES ('superadmin')");
 
     $conn->query("CREATE TABLE IF NOT EXISTS otp_tokens (
         id INT(11) NOT NULL AUTO_INCREMENT,
@@ -193,7 +205,22 @@ function current_app_user(mysqli $conn): ?array {
 
     $_SESSION['role'] = $user['role'];
     $_SESSION['username'] = $user['username'];
+    $presenceStmt = $conn->prepare('UPDATE users SET last_seen_at = NOW() WHERE id = ?');
+    if ($presenceStmt) {
+        $presenceStmt->bind_param('i', $user['id']);
+        $presenceStmt->execute();
+        $presenceStmt->close();
+    }
     return $user;
+}
+
+function clear_user_presence(mysqli $conn, int $userId): void {
+    $stmt = $conn->prepare('UPDATE users SET last_seen_at = NULL WHERE id = ?');
+    if ($stmt) {
+        $stmt->bind_param('i', $userId);
+        $stmt->execute();
+        $stmt->close();
+    }
 }
 
 function require_login(mysqli $conn): array {
@@ -320,6 +347,52 @@ function duration_label(?string $duration): string {
         'manual' => 'Until manually reactivated',
     ];
     return $labels[$duration] ?? '';
+}
+
+function acquire_superadmin_lock(mysqli $conn, int $userId, string $sessionId): ?bool {
+    if (!$conn->begin_transaction()) {
+        return null;
+    }
+
+    $result = $conn->query("SELECT active_user_id FROM superadmin_lock WHERE lock_name = 'superadmin' FOR UPDATE");
+    if (!$result) {
+        $conn->rollback();
+        return null;
+    }
+
+    $lock = $result->fetch_assoc();
+    $activeUserId = $lock['active_user_id'] ?? null;
+    if ($activeUserId !== null && (int)$activeUserId !== $userId) {
+        $conn->rollback();
+        return false;
+    }
+
+    $stmt = $conn->prepare("UPDATE superadmin_lock SET active_user_id = ?, session_id = ? WHERE lock_name = 'superadmin'");
+    if (!$stmt) {
+        $conn->rollback();
+        return null;
+    }
+
+    $stmt->bind_param('is', $userId, $sessionId);
+    $ok = $stmt->execute() && $conn->commit();
+    $stmt->close();
+    if (!$ok) {
+        $conn->rollback();
+        return null;
+    }
+    return true;
+}
+
+function release_superadmin_lock(mysqli $conn, int $userId, string $sessionId): void {
+    $stmt = $conn->prepare("UPDATE superadmin_lock
+        SET active_user_id = NULL, session_id = NULL
+        WHERE lock_name = 'superadmin' AND active_user_id = ? AND session_id = ?");
+    if (!$stmt) {
+        return;
+    }
+    $stmt->bind_param('is', $userId, $sessionId);
+    $stmt->execute();
+    $stmt->close();
 }
 
 function log_audit_action(

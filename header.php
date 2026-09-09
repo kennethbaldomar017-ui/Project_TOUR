@@ -38,7 +38,13 @@ $avatar_letters = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $display_nam
                 <div class="admin-topbar-tools">
                     <label class="admin-search"><span>&#9906;</span><input type="search" placeholder="Search..."></label>
                     <a href="audit_logs.php" class="admin-topbar-icon" aria-label="Notifications">&#128276;</a>
-                    <a href="edit_info.php" class="admin-avatar"><?= e($avatar_letters); ?></a>
+                    <details class="admin-account-menu">
+                        <summary class="admin-avatar" aria-label="Open account menu"><?= e($avatar_letters); ?></summary>
+                        <div class="admin-account-dropdown">
+                            <a href="edit_info.php">Account Settings</a>
+                            <a href="logout.php">Log Out</a>
+                        </div>
+                    </details>
                 </div>
             </header>
 <?php else: ?>

@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+require_once 'auth.php';
 verify_csrf();
 
 // Debug: Check if session is working
@@ -78,6 +79,21 @@ if ($result->num_rows === 1) {
 
         session_regenerate_id(true);
 
+        if ($role === ROLE_SUPERADMIN) {
+            $superadminLock = acquire_superadmin_lock($conn, (int)$user_id, session_id());
+            if ($superadminLock !== true) {
+                if ($superadminLock === false) {
+                    log_audit_action($conn, $row, $row, 'blocked_superadmin_login', null, STATUS_ACTIVE, null, null, 'Another superadmin is already logged in');
+                    $_SESSION['form_error'] = 'Another superadmin is already logged in. Please wait for that superadmin to log out.';
+                } else {
+                    $_SESSION['form_error'] = 'Unable to verify superadmin availability. Please try again.';
+                }
+                $stmt->close();
+                header('Location: login.php');
+                exit();
+            }
+        }
+
         // Set session variables
         $_SESSION['user_id'] = $user_id;
         $_SESSION['identifier'] = $identifier;
@@ -88,6 +104,13 @@ if ($result->num_rows === 1) {
         // Store user's full name in session
         $_SESSION['first_name'] = $first_name;
         $_SESSION['last_name'] = $last_name;
+
+        $presenceStmt = $conn->prepare('UPDATE users SET last_seen_at = NOW() WHERE id = ?');
+        if ($presenceStmt) {
+            $presenceStmt->bind_param('i', $user_id);
+            $presenceStmt->execute();
+            $presenceStmt->close();
+        }
 
         log_audit_action($conn, $row, $row, 'login_success', null, STATUS_ACTIVE, null, null, 'Successful login');
 
@@ -137,7 +160,7 @@ if ($result->num_rows === 1) {
             $_SESSION['failed_logins'] = array();
         }
         
-        $post_identifier = $_POST['identifier'] ?? '';
+        $post_identifier = $identifier;
         
         if (!isset($_SESSION['failed_logins'][$post_identifier])) {
             $_SESSION['failed_logins'][$post_identifier] = 0;
@@ -192,7 +215,7 @@ if ($result->num_rows === 1) {
         $_SESSION['failed_logins'] = array();
     }
     
-    $post_identifier = $_POST['identifier'] ?? '';
+    $post_identifier = $identifier;
     
     if (!isset($_SESSION['failed_logins'][$post_identifier])) {
         $_SESSION['failed_logins'][$post_identifier] = 0;

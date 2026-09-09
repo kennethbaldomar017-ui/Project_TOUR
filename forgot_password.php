@@ -79,7 +79,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         $otp = (string)random_int(100000, 999999);
                         $tokenHash = password_hash($otp, PASSWORD_DEFAULT);
-                        $expiresAt = date('Y-m-d H:i:s', time() + 600);
                         $emailStmt = $conn->prepare('SELECT email FROM users WHERE id = ? LIMIT 1');
                         $emailStmt->bind_param('i', $uid);
                         $emailStmt->execute();
@@ -87,14 +86,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $emailStmt->close();
 
                         $conn->query('DELETE FROM otp_tokens WHERE user_id = ' . (int)$uid . ' OR expires_at < NOW()');
-                        $otpStmt = $conn->prepare('INSERT INTO otp_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)');
-                        $otpStmt->bind_param('iss', $uid, $tokenHash, $expiresAt);
+                        $otpStmt = $conn->prepare("INSERT INTO otp_tokens (user_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
+                        $otpStmt->bind_param('is', $uid, $tokenHash);
                         $otpStmt->execute();
                         $otpStmt->close();
 
-                        $sent = mail($emailValue, 'PRIME. password reset code', "Your PRIME. verification code is {$otp}. It expires in 10 minutes.");
+                        $sent = $emailValue !== '' && @mail(
+                            $emailValue,
+                            'PRIME. password reset code',
+                            "Your PRIME. verification code is {$otp}. It expires in 10 minutes."
+                        );
                         if (!$sent) {
-                            $errors[] = 'The verification email could not be sent. Configure PHP mail or SMTP and try again.';
+                            $conn->query('DELETE FROM otp_tokens WHERE user_id = ' . (int)$uid);
+                            $errors[] = 'The verification email could not be sent. Configure SMTP in XAMPP/PHP and try again.';
                         } else {
                             $otp_sent = true;
                             $id_value = $row['id_number'];

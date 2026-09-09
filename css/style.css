@@ -270,6 +270,18 @@ img { max-width: 100%; }
   animation: fadeInUp 0.35s ease;
 }
 
+.registration-card { max-width: 980px; }
+.registration-card fieldset { min-width: 0; margin: 0; padding: 22px; border: 1px solid var(--border); border-radius: var(--radius); background: rgba(248, 250, 252, 0.78); }
+.registration-card legend { padding: 0 8px; color: var(--text); font-size: 14px; font-weight: 700; }
+.registration-card .form-grid,
+.registration-card .form-grid1 { gap: 18px 14px; }
+.registration-card .security-question-group1 { min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.registration-card .security-question-group1 label { margin-bottom: 8px; }
+.registration-card .security-question-group1 select { margin-bottom: 12px; }
+.registration-card .step-buttons { align-items: center; margin-top: 18px; }
+.registration-card .step-buttons .btn { width: auto; min-width: 116px; }
+.registration-card .login-prompt { margin: 26px 0 0; text-align: center; }
+
 .auth1-page { display: flex; justify-content: center; padding: 40px 16px; }
 .auth1-card {
   width: 100%;
@@ -627,6 +639,13 @@ img { max-width: 100%; }
 .admin-search input { width: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: #252844; font-size: 12px; }
 .admin-topbar-icon { display: grid; width: 38px; height: 38px; place-items: center; border-left: 1px solid #edf0f5; color: #70748e; font-size: 15px; }
 .admin-topbar-icon:hover { color: #5273f5; text-decoration: none; }
+.admin-account-menu { position: relative; }
+.admin-account-menu summary { list-style: none; cursor: pointer; }
+.admin-account-menu summary::-webkit-details-marker { display: none; }
+.admin-account-menu summary:focus-visible { outline: 3px solid rgba(86, 117, 245, 0.3); outline-offset: 3px; }
+.admin-account-dropdown { position: absolute; top: calc(100% + 10px); right: 0; z-index: 50; min-width: 176px; padding: 6px; background: #ffffff; border: 1px solid #e2e5ef; box-shadow: 0 10px 24px rgba(33, 40, 77, 0.14); }
+.admin-account-dropdown a { display: block; padding: 10px 12px; color: #555873; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.admin-account-dropdown a:hover { color: #5675f5; background: #f3f5ff; text-decoration: none; }
 .admin-avatar { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; color: #ffffff; background: linear-gradient(135deg, #5a7aff, #ef5e9d); font-family: var(--font-display); font-size: 12px; font-weight: 700; }
 .admin-avatar:hover { color: #ffffff; text-decoration: none; }
 .admin-avatar.small { width: 32px; height: 32px; font-size: 10px; }
@@ -1199,6 +1218,8 @@ input[disabled] { background: var(--surface-sunken); color: var(--muted); cursor
 .status-active,
 .status-pending,
 .status-deactivated,
+.status-offline,
+.status-blocked,
 .role-user,
 .role-admin,
 .role-superadmin {
@@ -1215,6 +1236,8 @@ input[disabled] { background: var(--surface-sunken); color: var(--muted); cursor
 .status-active { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
 .status-pending { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
 .status-deactivated { background: var(--surface-sunken); color: var(--muted); border: 1px solid var(--border-strong); }
+.status-offline { background: var(--surface-sunken); color: var(--text-soft); border: 1px solid var(--border-strong); }
+.status-blocked { background: var(--error-bg); color: var(--error); border: 1px solid var(--error-border); }
 
 .role-user { background: var(--surface-sunken); color: var(--text-soft); border: 1px solid var(--border-strong); }
 .role-admin { background: var(--info-bg); color: var(--info); border: 1px solid var(--info-border); }
@@ -1547,6 +1570,12 @@ input[disabled] { background: var(--surface-sunken); color: var(--muted); cursor
   .form-grid { grid-template-columns: 1fr 1fr; }
   .form-grid1 { grid-template-columns: 1fr 1fr; }
   .span-2 { grid-column: span 2; }
+}
+
+@media (min-width: 1000px) {
+  .registration-card .form-grid,
+  .registration-card .form-grid1 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .registration-card .span-2 { grid-column: span 1; }
 }
 
 @media (max-width: 900px) {

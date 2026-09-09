@@ -37,6 +37,7 @@ $confirm_password = $_POST['confirm_password'] ?? '';
 $auth_a1 = clean($_POST['auth_a1'] ?? '');
 $auth_a2 = clean($_POST['auth_a2'] ?? '');
 $auth_a3 = clean($_POST['auth_a3'] ?? '');
+$current_step = max(1, min(4, (int)($_POST['current_step'] ?? 4)));
 
 // Get the actual question text selected by user (from the select dropdowns)
 $question1 = clean($_POST['question1'] ?? '');
@@ -220,6 +221,29 @@ if (empty($errors)) {
 
 // Display errors
 if (!empty($errors)) {
+    $_SESSION['registration_values'] = [
+        'id_number' => $id_number,
+        'first_name' => $first_name,
+        'middle_name' => $middle_name,
+        'last_name' => $last_name,
+        'extension' => $extension,
+        'birthdate' => $birthdate,
+        'street' => $street,
+        'barangay' => $barangay,
+        'city' => $city,
+        'province' => $province,
+        'country' => $country,
+        'zip' => $zip,
+        'email' => $email,
+        'username' => $username,
+        'question1' => $question1,
+        'question2' => $question2,
+        'question3' => $question3,
+        'auth_a1' => $auth_a1,
+        'auth_a2' => $auth_a2,
+        'auth_a3' => $auth_a3,
+    ];
+    $_SESSION['registration_step'] = $current_step;
     $_SESSION['error'] = implode(' ', $errors);
     header('Location: sign.php');
     exit;
@@ -245,6 +269,12 @@ $ins = $conn->prepare('INSERT INTO users (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
 
 if (!$ins) {
+    $_SESSION['registration_values'] = compact(
+        'id_number', 'first_name', 'middle_name', 'last_name', 'extension', 'birthdate',
+        'street', 'barangay', 'city', 'province', 'country', 'zip', 'email', 'username',
+        'question1', 'question2', 'question3', 'auth_a1', 'auth_a2', 'auth_a3'
+    );
+    $_SESSION['registration_step'] = $current_step;
     $_SESSION['error'] = 'Database error while preparing registration. Please try again.';
     header('Location: sign.php');
     exit;
@@ -279,10 +309,18 @@ $ins->bind_param(
 );
 
 if ($ins->execute()) {
+    unset($_SESSION['registration_values'], $_SESSION['registration_step']);
     $_SESSION['success'] = 'Registration submitted. An administrator must approve your account before you can log in.';
     header('Location: login.php');
 } else {
+    unset($_SESSION['registration_values'], $_SESSION['registration_step']);
     $_SESSION['error'] = 'Database error: ' . $conn->error;
+    $_SESSION['registration_values'] = compact(
+        'id_number', 'first_name', 'middle_name', 'last_name', 'extension', 'birthdate',
+        'street', 'barangay', 'city', 'province', 'country', 'zip', 'email', 'username',
+        'question1', 'question2', 'question3', 'auth_a1', 'auth_a2', 'auth_a3'
+    );
+    $_SESSION['registration_step'] = $current_step;
     header('Location: sign.php');
 }
 

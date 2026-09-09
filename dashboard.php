@@ -61,15 +61,11 @@ $totalAccounts = $stats['users'] + $stats['admins'] + $stats['superadmins'];
     <main class="container dashboard-page <?= $isAdminDashboard ? 'admin-dashboard-content' : ''; ?>">
         <div class="dashboard-intro">
             <div>
-                <p class="eyebrow"><?= $isAdminDashboard ? 'ADMINISTRATION' : 'TECH OPERATIONS'; ?></p>
                 <h2><?= $isAdminDashboard ? 'Dashboard' : 'Good to see you, ' . e($displayName) . '.'; ?></h2>
-                <p class="dashboard-summary">
-                    <?= $isAdminDashboard
-                        ? 'Manage users, approvals, system activity, and technical operations from one workspace.'
-                        : 'Manage computer parts inventory, supplier buying, and PC build jobs from one workspace.'; ?>
-                </p>
+                <?php if (!$isAdminDashboard): ?>
+                    <p class="dashboard-summary">Manage computer parts inventory, supplier buying, and PC build jobs from one workspace.</p>
+                <?php endif; ?>
             </div>
-            <span class="dashboard-role"><?= e(ucfirst($currentUser['role'])); ?> account</span>
         </div>
 
         <?php if ($isAdminDashboard): ?>
@@ -79,7 +75,7 @@ $totalAccounts = $stats['users'] + $stats['admins'] + $stats['superadmins'];
                     <div>
                         <h1><?= e($displayName); ?></h1>
                         <p><?= e($currentUser['email'] ?? $currentUser['username']); ?></p>
-                        <div class="admin-profile-tags"><span>Administration</span><span>Tech Operations</span><span>Full Access</span></div>
+                        <div class="admin-profile-tags"><span>Tech Operations</span><span>Full Access</span></div>
                     </div>
                 </div>
                 <div class="admin-profile-meta"><span><strong><?= number_format($totalAccounts); ?></strong> accounts</span><span><strong><?= number_format($stats['active']); ?></strong> active</span><span><strong><?= number_format($stats['pending']); ?></strong> pending</span></div>
@@ -142,7 +138,7 @@ $totalAccounts = $stats['users'] + $stats['admins'] + $stats['superadmins'];
         <?php endif; ?>
 
         <?php if ($isAdminDashboard): ?>
-            <section class="admin-chart-grid" aria-label="Administration overview">
+            <section class="admin-chart-grid" aria-label="Dashboard overview">
                 <article class="admin-chart-card">
                     <div class="admin-card-heading"><h3>Account status</h3><span>Current</span></div>
                     <div class="status-chart"><div class="status-donut"><strong><?= number_format($totalAccounts); ?></strong><small>accounts</small></div><div class="status-legend"><span><i class="active-dot"></i>Active <b><?= number_format($stats['active']); ?></b></span><span><i class="pending-dot"></i>Pending <b><?= number_format($stats['pending']); ?></b></span><span><i class="disabled-dot"></i>Deactivated <b><?= number_format($stats['deactivated']); ?></b></span></div></div>
