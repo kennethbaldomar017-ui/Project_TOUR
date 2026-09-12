@@ -18,14 +18,17 @@ $otherSuperadmin = ['id' => 5, 'username' => 'othersuper', 'role' => ROLE_SUPERA
 // preserving the legacy role-based behaviour.
 assert_true(can_manage_account(null, $admin, $user, 'activate'), 'Admin should activate users.');
 assert_true(can_manage_account(null, $admin, $user, 'deactivate'), 'Admin should deactivate users.');
+assert_true(can_manage_account(null, $admin, $user, 'update_info'), 'Admin should update user information.');
 assert_true(can_manage_account(null, $admin, $user, 'delete'), 'Admin should delete users when policy permits.');
 assert_true(!can_manage_account(null, $admin, $otherAdmin, 'deactivate'), 'Admin must not deactivate admins.');
+assert_true(!can_manage_account(null, $admin, $otherAdmin, 'update_info'), 'Admin must not update admin information.');
 assert_true(!can_manage_account(null, $admin, $otherSuperadmin, 'delete'), 'Admin must not delete superadmins.');
 assert_true(!can_manage_account(null, $admin, $admin, 'deactivate'), 'Admin must not deactivate self.');
 assert_true(!can_manage_account(null, $admin, $pending, 'role_change'), 'Admin must not change roles without the manage_roles privilege.');
 
 assert_true(can_manage_account(null, $superadmin, $user, 'delete'), 'Superadmin should delete users.');
 assert_true(can_manage_account(null, $superadmin, $otherAdmin, 'deactivate'), 'Superadmin should deactivate admins.');
+assert_true(can_manage_account(null, $superadmin, $otherAdmin, 'update_info'), 'Superadmin should update admin information.');
 assert_true(can_manage_account(null, $superadmin, $otherSuperadmin, 'role_change'), 'Superadmin should manage other superadmins.');
 assert_true(!can_manage_account(null, $superadmin, $superadmin, 'delete'), 'Superadmin must not delete self.');
 

@@ -45,9 +45,14 @@ try {
     }
     $conn->commit();
 
+    $credentialsEmailSent = $actor['role'] === ROLE_SUPERADMIN
+        ? send_account_credentials_email($target, $defaultPassword)
+        : false;
     $_SESSION['generated_password'] = $defaultPassword;
+    $_SESSION['credentials_email_sent'] = $credentialsEmailSent;
     $_SESSION['generated_account'] = [
         'username' => $target['username'],
+        'email' => $target['email'],
         'id_number' => $target['id_number'],
         'role' => $target['role'],
     ];

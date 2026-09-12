@@ -23,8 +23,6 @@ if (!$target) {
     exit;
 }
 
-$allowedDurations = ['1_month', '3_months', '6_months', 'manual'];
-
 try {
     if ($action === 'activate') {
         if (!can_manage_account($conn, $actor, $target, 'activate')) {
@@ -43,15 +41,13 @@ try {
         $conn->commit();
         $_SESSION['success'] = $target['status'] === STATUS_PENDING ? 'Registration approved. Account activated.' : 'Account activated.';
     } elseif ($action === 'deactivate') {
-        if (!in_array($duration, $allowedDurations, true)) {
-            throw new RuntimeException('Choose a valid deactivation duration.');
-        }
         if (!can_manage_account($conn, $actor, $target, 'deactivate')) {
-            log_audit_action($conn, $actor, $target, 'failed_authorization', $target['status'], $target['status'], $duration, null, 'Deactivation denied');
+            log_audit_action($conn, $actor, $target, 'failed_authorization', $target['status'], $target['status'], 'manual', null, 'Deactivation denied');
             throw new RuntimeException('You are not allowed to deactivate this account.');
         }
 
-        $expiresAt = deactivation_expiration($duration);
+        $duration = 'manual';
+        $expiresAt = null;
         $conn->begin_transaction();
         $stmt = $conn->prepare("UPDATE users SET status = 'deactivated', deactivation_duration = ?, deactivated_until = ?, status_reason = ?, status_changed_at = NOW() WHERE id = ?");
         $storedReason = $reason ?: null;

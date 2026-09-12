@@ -2,7 +2,7 @@
 require_once 'config.php';
 $actor = require_admin($conn);
 
-$search = trim($_GET['search'] ?? '');
+$employeeId = trim($_GET['employee_id'] ?? '');
 $roleFilter = $_GET['role'] ?? '';
 $statusFilter = $_GET['status'] ?? '';
 
@@ -10,13 +10,10 @@ $where = [];
 $params = [];
 $types = '';
 
-if ($search !== '') {
-    $where[] = "(username LIKE ? OR email LIKE ? OR id_number LIKE ? OR first_name LIKE ? OR last_name LIKE ?)";
-    $like = '%' . $search . '%';
-    for ($i = 0; $i < 5; $i++) {
-        $params[] = $like;
-        $types .= 's';
-    }
+if ($employeeId !== '') {
+    $where[] = 'id_number LIKE ?';
+    $params[] = '%' . $employeeId . '%';
+    $types .= 's';
 }
 if (in_array($roleFilter, [ROLE_USER, ROLE_ADMIN, ROLE_SUPERADMIN], true)) {
     $where[] = "role = ?";
@@ -44,13 +41,6 @@ if ($params) {
 $stmt->execute();
 $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
-
-$userCounts = ['total' => count($users), 'active' => 0, 'pending' => 0, 'deactivated' => 0];
-foreach ($users as $listedUser) {
-    if (isset($userCounts[$listedUser['status']])) {
-        $userCounts[$listedUser['status']]++;
-    }
-}
 
 $token = csrf_token();
 
@@ -87,15 +77,8 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                     <a class="btn compact-link" href="create_admin.php">Create Admin</a>
                 <?php endif; ?>
             </div>
-            <div class="admin-stat-strip">
-                <span><strong><?= number_format($userCounts['total']); ?></strong><small>Visible accounts</small></span>
-                <span><strong><?= number_format($userCounts['active']); ?></strong><small>Active</small></span>
-                <span><strong><?= number_format($userCounts['pending']); ?></strong><small>Pending</small></span>
-                <span><strong><?= number_format($userCounts['deactivated']); ?></strong><small>Deactivated</small></span>
-            </div>
-
             <form class="filter-bar" method="get">
-                <input type="search" name="search" value="<?= e($search); ?>" placeholder="Search users">
+                <input type="search" name="employee_id" value="<?= e($employeeId); ?>" placeholder="Employee ID">
                 <select name="role">
                     <option value="">All roles</option>
                     <option value="user" <?= $roleFilter === ROLE_USER ? 'selected' : ''; ?>>User</option>
@@ -129,6 +112,7 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                             $canDeactivate = can_manage_account($conn, $actor, $user, 'deactivate') && $user['status'] !== STATUS_DEACTIVATED;
                             $canDelete = can_manage_account($conn, $actor, $user, 'delete');
                             $canRoleChange = can_manage_account($conn, $actor, $user, 'role_change');
+                            $canUpdateInfo = can_manage_account($conn, $actor, $user, 'update_info');
                             $canReset = $canResetPasswords && (
                                 $isSuperadmin || ($actor['role'] === ROLE_ADMIN && $user['role'] === ROLE_USER)
                             ) && (int)$user['id'] !== (int)$actor['id'];
@@ -151,22 +135,6 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                                             <button type="submit" class="btn btn-primary"><?= $user['status'] === STATUS_PENDING ? 'Approve registration' : 'Activate'; ?></button>
                                         </form>
                                     <?php endif; ?>
-                                    <?php if ($canDeactivate && $user['status'] !== STATUS_PENDING): ?>
-                                        <form method="post" action="admin_action.php" class="js-confirm"
-                                              data-confirm-title="Deactivate this account?"
-                                              data-confirm-message="The selected duration will apply. The account owner will not be able to sign in.">
-                                            <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
-                                            <input type="hidden" name="target_id" value="<?= (int)$user['id']; ?>">
-                                            <input type="hidden" name="action" value="deactivate">
-                                            <select name="duration" required aria-label="Deactivation duration">
-                                                <option value="1_month">1 month</option>
-                                                <option value="3_months">3 months</option>
-                                                <option value="6_months">6 months</option>
-                                                <option value="manual">Until manually reactivated</option>
-                                            </select>
-                                            <button type="submit" class="btn btn-primary">Deactivate</button>
-                                        </form>
-                                    <?php endif; ?>
                                     <?php if ($canRoleChange): ?>
                                         <form method="post" action="admin_action.php" class="js-confirm"
                                               data-confirm-title="Change this account role?"
@@ -180,6 +148,19 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                                                 <option value="superadmin" <?= $user['role'] === ROLE_SUPERADMIN ? 'selected' : ''; ?>>Superadmin</option>
                                             </select>
                                             <button type="submit" class="btn btn-primary">Change Role</button>
+                                        </form>
+                                    <?php endif; ?>
+                                    <?php if ($canUpdateInfo): ?>
+                                        <a class="btn btn-ghost action-link" href="account_info.php?id=<?= (int)$user['id']; ?>">Edit Info</a>
+                                    <?php endif; ?>
+                                    <?php if ($canDeactivate && $user['status'] !== STATUS_PENDING): ?>
+                                        <form method="post" action="admin_action.php" class="js-confirm"
+                                              data-confirm-title="Deactivate this account?"
+                                              data-confirm-message="The account will remain deactivated until an administrator activates it.">
+                                            <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
+                                            <input type="hidden" name="target_id" value="<?= (int)$user['id']; ?>">
+                                            <input type="hidden" name="action" value="deactivate">
+                                            <button type="submit" class="btn btn-primary">Deactivate</button>
                                         </form>
                                     <?php endif; ?>
                                     <?php if ($canDelete): ?>
@@ -198,7 +179,7 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                                     <?php if ($canManagePrivileges): ?>
                                         <a class="btn btn-ghost action-link" href="manage_privileges.php?id=<?= (int)$user['id']; ?>">Manage Privileges</a>
                                     <?php endif; ?>
-                                    <?php if (!$canActivate && !$canDeactivate && !$canDelete && !$canRoleChange && !$canReset && !$canManagePrivileges): ?>
+                                    <?php if (!$canActivate && !$canDeactivate && !$canDelete && !$canRoleChange && !$canUpdateInfo && !$canReset && !$canManagePrivileges): ?>
                                         <span class="muted-text">No permitted actions for your role</span>
                                     <?php endif; ?>
                                 </div>
@@ -222,10 +203,7 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                             <td><span class="badge status-<?= e($presenceClass); ?>"><?= e($presenceLabel); ?></span></td>
                             <td>
                                 <?php if ($user['status'] === STATUS_DEACTIVATED): ?>
-                                    <?= e(duration_label($user['deactivation_duration'])); ?>
-                                    <?php if ($user['deactivated_until']): ?>
-                                        <span>until <?= e($user['deactivated_until']); ?></span>
-                                    <?php endif; ?>
+                                    Until manually reactivated
                                 <?php else: ?>
                                     <span>None</span>
                                 <?php endif; ?>

@@ -66,7 +66,7 @@
         if (!field) return;
         if (field.type === 'password') {
             field.type = 'text';
-            trigger.innerHTML = '&#128066;';
+            trigger.innerHTML = '&#128065;';
         } else {
             field.type = 'password';
             trigger.innerHTML = '&#128065;';
@@ -122,18 +122,4 @@
         }
     });
 
-    // Reveal/hide the confirmation password with the toggle icon.
-    const toggle = document.querySelector('[data-confirm-toggle]');
-    if (toggle) {
-        toggle.addEventListener('click', function () {
-            const input = document.getElementById('confirmPasswordInput');
-            if (input.type === 'password') {
-                input.type = 'text';
-                toggle.innerHTML = '&#128066;';
-            } else {
-                input.type = 'password';
-                toggle.innerHTML = '&#128065;';
-            }
-        });
-    }
 })();

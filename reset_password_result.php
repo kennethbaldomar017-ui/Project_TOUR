@@ -8,6 +8,7 @@ if (empty($_SESSION['generated_password'])) {
 }
 $generatedPassword = $_SESSION['generated_password'];
 $account = $_SESSION['generated_account'];
+$credentialsEmailSent = !empty($_SESSION['credentials_email_sent']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -28,6 +29,11 @@ $account = $_SESSION['generated_account'];
                 <?= e(ucfirst($account['role'])); ?> account
                 <strong><?= e($account['username']); ?></strong> (#<?= e($account['id_number']); ?>)
                 now uses a temporary password.
+            </p>
+            <p class="help-text <?= $credentialsEmailSent ? '' : 'form-error'; ?>">
+                <?= $credentialsEmailSent
+                    ? 'The username and temporary password were emailed to ' . e($account['email']) . '.'
+                    : 'The password was reset, but the credential email could not be sent.'; ?>
             </p>
 
             <div class="generated-password-card">
@@ -64,7 +70,7 @@ $account = $_SESSION['generated_account'];
                 reveal.addEventListener('click', function () {
                     if (input.type === 'password') {
                         input.type = 'text';
-                        reveal.innerHTML = '&#128066;';
+                        reveal.innerHTML = '&#128065;';
                     } else {
                         input.type = 'password';
                         reveal.innerHTML = '&#128065;';

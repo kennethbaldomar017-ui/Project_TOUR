@@ -19,6 +19,7 @@ const PRIV_MANAGE_ADMINS = 'manage_admins';
 const PRIV_RESET_PASSWORDS = 'reset_passwords';
 const PRIV_VIEW_AUDIT_LOGS = 'view_audit_logs';
 const PRIV_MANAGE_PRIVILEGES = 'manage_privileges';
+const PRIV_UPDATE_INFO = 'update_info';
 
 const PRIVILEGE_LABELS = [
     PRIV_APPROVE => 'Approve registrations',
@@ -29,6 +30,7 @@ const PRIVILEGE_LABELS = [
     PRIV_RESET_PASSWORDS => 'Reset account passwords',
     PRIV_VIEW_AUDIT_LOGS => 'View audit logs',
     PRIV_MANAGE_PRIVILEGES => 'Manage administrator privileges',
+    PRIV_UPDATE_INFO => 'Update account information',
 ];
 
 // Privileges automatically granted to newly created administrators.
@@ -36,11 +38,34 @@ const DEFAULT_ADMIN_PRIVILEGES = [
     PRIV_APPROVE,
     PRIV_MANAGE_USERS,
     PRIV_DELETE_USERS,
+    PRIV_UPDATE_INFO,
     PRIV_VIEW_AUDIT_LOGS,
 ];
 
 function e($value) {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
+
+function send_account_credentials_email(array $account, string $temporaryPassword): bool {
+    $email = trim((string)($account['email'] ?? ''));
+    $username = trim((string)($account['username'] ?? ''));
+    if ($email === '' || $username === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return false;
+    }
+
+    $firstName = trim((string)($account['first_name'] ?? ''));
+    $greeting = $firstName !== '' ? 'Hello ' . $firstName . ',' : 'Hello,';
+    $message = $greeting . "\n\n"
+        . "Your PRIME. account credentials are ready.\n\n"
+        . "Username: {$username}\n"
+        . "Temporary password: {$temporaryPassword}\n\n"
+        . "Please sign in and change this temporary password immediately.\n\n"
+        . "If you did not expect this email, contact your administrator.\n";
+    $headers = "From: PRIME. <primetechcompany@gmail.com>\r\n"
+        . "Reply-To: primetechcompany@gmail.com\r\n"
+        . "Content-Type: text/plain; charset=UTF-8\r\n";
+
+    return @mail($email, 'PRIME. account credentials', $message, $headers);
 }
 
 function ensure_rbac_schema(mysqli $conn): void {
@@ -292,13 +317,14 @@ function can_manage_account(?mysqli $conn, array $actor, array $target, string $
         'deactivate'  => PRIV_MANAGE_USERS,
         'delete'      => PRIV_DELETE_USERS,
         'role_change' => PRIV_MANAGE_ROLES,
+        'update_info' => PRIV_UPDATE_INFO,
     ];
     $allowedPrivileges = $conn !== null ? get_user_privileges($conn, (int)$actor['id']) : DEFAULT_ADMIN_PRIVILEGES;
     if (isset($privilegeForAction[$action]) && !in_array($privilegeForAction[$action], $allowedPrivileges, true)) {
         return false;
     }
 
-    return in_array($action, ['activate', 'deactivate', 'delete', 'role_change'], true);
+    return in_array($action, ['activate', 'deactivate', 'delete', 'role_change', 'update_info'], true);
 }
 
 function can_create_role(array $actor, string $role): bool {

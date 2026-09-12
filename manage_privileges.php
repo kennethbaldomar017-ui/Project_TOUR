@@ -104,7 +104,7 @@ $currentPrivileges = $target ? get_user_privileges($conn, (int)$target['id']) : 
 
                     <div class="step-buttons">
                         <a class="muted-link" href="manage_privileges.php">Back to administrators</a>
-                        <button type="submit" class="btn btn-primary btn-block">Save Privileges</button>
+                        <button type="submit" class="btn btn-primary">Save Privileges</button>
                     </div>
                 </form>
             <?php endif; ?>

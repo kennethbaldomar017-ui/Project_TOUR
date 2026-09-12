@@ -21,5 +21,4 @@ require_once 'tech_system.php';
 
 ensure_rbac_schema($conn);
 ensure_tech_schema($conn);
-reactivate_expired_accounts($conn);
 ?>

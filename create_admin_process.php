@@ -122,6 +122,8 @@ try {
     $target = [
         'id' => $newId,
         'username' => $username,
+        'email' => $email,
+        'first_name' => $firstName,
         'role' => $role,
         'status' => STATUS_ACTIVE,
     ];
@@ -130,9 +132,12 @@ try {
     }
     $conn->commit();
 
+    $credentialsEmailSent = send_account_credentials_email($target, $defaultPassword);
     $_SESSION['generated_password'] = $defaultPassword;
+    $_SESSION['credentials_email_sent'] = $credentialsEmailSent;
     $_SESSION['generated_account'] = [
         'username' => $username,
+        'email' => $email,
         'id_number' => $idNumber,
         'role' => $role,
     ];
