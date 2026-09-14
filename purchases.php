@@ -14,9 +14,16 @@ $result = $conn->query("SELECT p.*, tp.sku, tp.name, tp.category
 $purchases = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 
 $totalSpend = 0.0;
+$totalUnits = 0;
+$supplierNames = [];
 foreach ($purchases as $purchase) {
     $totalSpend += (float)$purchase['total_cost'];
+    $totalUnits += (int)$purchase['quantity'];
+    if (trim((string)$purchase['supplier']) !== '') {
+        $supplierNames[] = trim($purchase['supplier']);
+    }
 }
+$supplierCount = count(array_unique($supplierNames));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -36,17 +43,26 @@ foreach ($purchases as $purchase) {
         <div class="form-success" id="alertBox"><?= e($_SESSION['success']); unset($_SESSION['success']); ?></div>
     <?php endif; ?>
 
-    <main class="container admin-page">
+    <main class="container admin-page tech-page buying-page">
         <section class="admin-panel tech-panel">
             <div class="admin-heading">
                 <div>
+                    <p class="page-eyebrow">PROCUREMENT DESK</p>
                     <h2>Buying And Purchase Intake</h2>
                     <p>Record incoming computer parts and automatically update stock.</p>
                 </div>
-                <span class="dashboard-role"><?= e(peso($totalSpend)); ?> recent spend</span>
+                <span class="dashboard-role tech-heading-stat"><?= e(peso($totalSpend)); ?> recent spend</span>
             </div>
 
-            <form class="tech-form-grid" action="purchase_action.php" method="post">
+            <div class="tech-kpis" aria-label="Buying summary">
+                <div><span>Purchase records</span><strong><?= number_format(count($purchases)); ?></strong><small>latest 100 records</small></div>
+                <div><span>Units received</span><strong><?= number_format($totalUnits); ?></strong><small>across recent intake</small></div>
+                <div><span>Suppliers</span><strong><?= number_format($supplierCount); ?></strong><small>named in records</small></div>
+                <div class="is-accent"><span>Recent spend</span><strong><?= e(peso($totalSpend)); ?></strong><small>purchase total</small></div>
+            </div>
+
+            <div class="tech-section-heading"><div><span class="page-eyebrow">NEW INTAKE</span><h3>Record a purchase</h3></div><p>Stock updates automatically after submission.</p></div>
+            <form class="tech-form-grid purchase-form" action="purchase_action.php" method="post">
                 <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
                 <label class="span-2">Purchased Part<span class="req"> *</span>
                     <select name="part_id" required>
@@ -67,7 +83,7 @@ foreach ($purchases as $purchase) {
             </form>
 
             <div class="table-wrap">
-                <table class="admin-table">
+                <table class="admin-table buying-table">
                     <thead>
                         <tr>
                             <th>Date</th>

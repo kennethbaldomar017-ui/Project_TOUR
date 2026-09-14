@@ -4,20 +4,30 @@ $actor = require_login($conn);
 
 $mustChange = (int)($actor['must_change_password'] ?? 0);
 
-// Pull current security questions for pre-selection.
-$qStmt = $conn->prepare('SELECT auth_q1, auth_q2, auth_q3 FROM users WHERE id = ? LIMIT 1');
+// Pull the signed-in user's account details for display.
+$qStmt = $conn->prepare('SELECT id_number, username, first_name, middle_name, last_name, extension, birthdate, age, email, street, barangay, city, province, country, zip FROM users WHERE id = ? LIMIT 1');
 $qStmt->bind_param('i', $actor['id']);
 $qStmt->execute();
 $qRow = $qStmt->get_result()->fetch_assoc();
 $qStmt->close();
-$currentQuestions = [
-    $qRow['auth_q1'] ?? null,
-    $qRow['auth_q2'] ?? null,
-    $qRow['auth_q3'] ?? null,
+$accountDetails = [
+    'id_number' => $qRow['id_number'] ?? '',
+    'username' => $qRow['username'] ?? '',
+    'first_name' => $qRow['first_name'] ?? '',
+    'middle_name' => $qRow['middle_name'] ?? '',
+    'last_name' => $qRow['last_name'] ?? '',
+    'extension' => $qRow['extension'] ?? '',
+    'birthdate' => $qRow['birthdate'] ?? '',
+    'age' => $qRow['age'] ?? '',
+    'email' => $qRow['email'] ?? '',
+    'street' => $qRow['street'] ?? '',
+    'barangay' => $qRow['barangay'] ?? '',
+    'city' => $qRow['city'] ?? '',
+    'province' => $qRow['province'] ?? '',
+    'country' => $qRow['country'] ?? '',
+    'zip' => $qRow['zip'] ?? '',
 ];
 
-$questionOptions = security_question_options();
-$token = csrf_token();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -41,8 +51,13 @@ $token = csrf_token();
 
     <main class="container auth-page">
         <div class="auth-card edit-info-card">
-            <h2>Account Settings</h2>
-            <p class="auth-subtitle">Update your password and security questions</p>
+            <div class="account-settings-heading">
+                <div>
+                    <h2>Account Settings</h2>
+                    <p class="auth-subtitle">View your account information</p>
+                </div>
+                <a class="btn btn-ghost" href="account_info.php?id=<?= (int)$actor['id']; ?>">Edit Information</a>
+            </div>
 
             <?php if ($mustChange): ?>
                 <div class="banner banner-warning">
@@ -50,220 +65,60 @@ $token = csrf_token();
                 </div>
             <?php endif; ?>
 
-            <form action="edit_info_process.php" method="post" novalidate>
-                <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
-
-                <div class="account-step-indicator" aria-label="Account settings steps">
-                    <span class="active" data-step-indicator="1"><b>1</b>Password</span>
-                    <i></i>
-                    <span data-step-indicator="2"><b>2</b>Security Questions</span>
+            <div class="account-details-panel">
+                <div class="account-details-heading">Personal Information</div>
+                <div class="account-details-grid">
+                    <div><span>First Name</span><strong><?= e($accountDetails['first_name']); ?></strong></div>
+                    <div><span>Middle Name</span><strong><?= e($accountDetails['middle_name'] ?: 'Not provided'); ?></strong></div>
+                    <div><span>Last Name</span><strong><?= e($accountDetails['last_name']); ?></strong></div>
+                    <div><span>Extension</span><strong><?= e($accountDetails['extension'] ?: 'None'); ?></strong></div>
+                    <div><span>Birthdate</span><strong><?= e($accountDetails['birthdate']); ?></strong></div>
+                    <div><span>Age</span><strong><?= e($accountDetails['age']); ?></strong></div>
                 </div>
+            </div>
 
-                <section class="account-step active" data-account-step="1">
-                    <fieldset>
-                        <legend>Change Password</legend>
-                        <div class="form-grid">
-                        <?php if (!$mustChange): ?>
-                            <div>
-                                <label>Current Password <span class="req">*</span></label>
-                                <div class="password-wrapper">
-                                    <input type="password" name="current_password" id="current_password" autocomplete="current-password" required minlength="8">
-                                    <span class="toggle-pwd-icon">&#128065;</span>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-                        <div>
-                            <label>New Password <span class="req">*</span></label>
-                            <div class="password-wrapper">
-                                <input type="password" name="new_password" id="new_password" autocomplete="new-password" required minlength="8" maxlength="64">
-                                <span class="toggle-pwd-icon">&#128065;</span>
-                            </div>
-                            <meter id="pwdStrength" min="0" max="4" value="0"></meter>
-                        </div>
-                        <div>
-                            <label>Confirm New Password <span class="req">*</span></label>
-                            <div class="password-wrapper">
-                                <input type="password" name="confirm_password" id="confirm_password" autocomplete="new-password" required minlength="8" maxlength="64">
-                                <span class="toggle-pwd-icon">&#128065;</span>
-                            </div>
-                            <div id="pwdMatch" class="match-indicator"></div>
-                        </div>
-                        <div class="span-2">
-                            <div class="help-text">Leave the password fields unchanged if you only want to update your security questions.</div>
-                        </div>
-                        </div>
-                        <div class="account-step-error" id="passwordStepError" role="alert"></div>
-                    </fieldset>
+            <div class="account-details-panel">
+                <div class="account-details-heading">Address Information</div>
+                <div class="account-details-grid">
+                    <div class="account-details-wide"><span>Street / Purok</span><strong><?= e($accountDetails['street']); ?></strong></div>
+                    <div><span>Barangay</span><strong><?= e($accountDetails['barangay']); ?></strong></div>
+                    <div><span>City / Municipality</span><strong><?= e($accountDetails['city']); ?></strong></div>
+                    <div><span>Province</span><strong><?= e($accountDetails['province']); ?></strong></div>
+                    <div><span>Country</span><strong><?= e($accountDetails['country']); ?></strong></div>
+                    <div><span>ZIP Code</span><strong><?= e($accountDetails['zip']); ?></strong></div>
+                </div>
+            </div>
 
-                    <div class="account-step-actions">
-                        <a class="muted-link" href="dashboard.php">Back to dashboard</a>
-                        <button type="button" class="btn btn-primary" id="nextAccountStep">Next: Security Questions</button>
+            <div class="account-details-panel">
+                <div class="account-details-heading">Account Information</div>
+                <div class="account-details-grid">
+                    <div>
+                        <span>Employee ID</span>
+                        <strong><?= e($accountDetails['id_number']); ?></strong>
                     </div>
-                </section>
-
-                <section class="account-step" data-account-step="2" hidden>
-                    <fieldset>
-                        <legend>Security Questions</legend>
-                        <p class="help-text">Three questions must be selected from the dropdowns. Answers are hidden and stored securely.</p>
-                        <?php for ($i = 1; $i <= 3; $i++): ?>
-                            <div class="security-question-group">
-                                <label>Security Question <?= $i; ?> <span class="req">*</span></label>
-                                <select name="question<?= $i; ?>" required>
-                                    <option value="">-- Select a question --</option>
-                                    <?php foreach ($questionOptions as $question): ?>
-                                        <option value="<?= e($question); ?>" <?= $currentQuestions[$i - 1] === $question ? 'selected' : ''; ?>><?= e($question); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <div class="password-wrapper">
-                                    <input type="password" name="auth_a<?= $i; ?>" placeholder="Your answer" autocomplete="off" required>
-                                    <span class="toggle-pwd-icon">&#128065;</span>
-                                </div>
-                                <?php if ($currentQuestions[$i - 1] && $currentQuestions[$i - 1] !== 'Created by superadmin'): ?>
-                                    <div class="help-text">Current: <?= e($currentQuestions[$i - 1]); ?></div>
-                                <?php endif; ?>
-                            </div>
-                        <?php endfor; ?>
-                    </fieldset>
-
-                    <div class="account-step-actions">
-                        <button type="button" class="btn btn-ghost" id="previousAccountStep">Back</button>
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <div>
+                        <span>Username</span>
+                        <strong><?= e($accountDetails['username']); ?></strong>
                     </div>
-                    <div class="account-step-error" id="securityStepError" role="alert"></div>
-                </section>
-            </form>
+                    <div>
+                        <span>First Name</span>
+                        <strong><?= e($accountDetails['first_name']); ?></strong>
+                    </div>
+                    <div>
+                        <span>Last Name</span>
+                        <strong><?= e($accountDetails['last_name']); ?></strong>
+                    </div>
+                    <div class="account-details-wide">
+                        <span>Email</span>
+                        <strong><?= e($accountDetails['email']); ?></strong>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </main>
 
     <?php include 'footer.php'; ?>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const password = document.getElementById('new_password');
-            const confirmPassword = document.getElementById('confirm_password');
-            const matchIndicator = document.getElementById('pwdMatch');
-            const meter = document.getElementById('pwdStrength');
-
-            if (password && meter) {
-                password.addEventListener('input', function () {
-                    const val = password.value;
-                    let score = 0;
-                    if (val.length >= 8) score++;
-                    if (/[a-z]/.test(val) && /[A-Z]/.test(val)) score++;
-                    if (/\d/.test(val)) score++;
-                    if (/[^a-zA-Z\d]/.test(val)) score++;
-                    meter.value = score;
-                });
-            }
-
-            function checkMatch() {
-                if (!password || !confirmPassword || !matchIndicator) return;
-                if (confirmPassword.value === '') {
-                    matchIndicator.textContent = '';
-                    matchIndicator.className = 'match-indicator';
-                } else if (password.value === confirmPassword.value) {
-                    matchIndicator.textContent = '✓ Passwords match';
-                    matchIndicator.className = 'match-indicator ok';
-                } else {
-                    matchIndicator.textContent = '✗ Passwords do not match';
-                    matchIndicator.className = 'match-indicator bad';
-                }
-            }
-
-            if (password) password.addEventListener('input', checkMatch);
-            if (confirmPassword) confirmPassword.addEventListener('input', checkMatch);
-
-            const mustChange = <?= $mustChange ? 'true' : 'false'; ?>;
-            if (mustChange) {
-                const currentPassword = document.getElementById('current_password');
-                if (currentPassword) currentPassword.closest('div') && false;
-            }
-
-            const form = document.querySelector('.edit-info-card form');
-            const nextStep = document.getElementById('nextAccountStep');
-            const previousStep = document.getElementById('previousAccountStep');
-            const passwordStep = document.querySelector('[data-account-step="1"]');
-            const securityStep = document.querySelector('[data-account-step="2"]');
-            const passwordStepError = document.getElementById('passwordStepError');
-            const indicators = document.querySelectorAll('[data-step-indicator]');
-
-            function setStep(step) {
-                passwordStep.hidden = step !== 1;
-                securityStep.hidden = step !== 2;
-                indicators.forEach(function (indicator) {
-                    indicator.classList.toggle('active', Number(indicator.dataset.stepIndicator) === step);
-                    indicator.classList.toggle('complete', Number(indicator.dataset.stepIndicator) < step);
-                });
-            }
-
-            if (nextStep) {
-                nextStep.addEventListener('click', async function () {
-                    const newValue = password ? password.value.trim() : '';
-                    const confirmValue = confirmPassword ? confirmPassword.value.trim() : '';
-                    const currentValue = document.getElementById('current_password');
-                    const currentValueText = currentValue ? currentValue.value : '';
-                    let error = '';
-
-                    if (!mustChange && currentValueText === '') error = 'Enter your current password before continuing.';
-                    else if (newValue === '') error = 'Enter a new password before continuing.';
-                    else if (confirmValue === '') error = 'Confirm your new password before continuing.';
-                    else if (newValue.length < 8 || newValue.length > 64) error = 'New password must be between 8 and 64 characters.';
-                    else if (newValue !== confirmValue) error = 'New passwords do not match.';
-
-                    if (passwordStepError) passwordStepError.textContent = error;
-                    if (error) return;
-
-                    if (!mustChange) {
-                        nextStep.disabled = true;
-                        nextStep.textContent = 'Checking password...';
-                        try {
-                            const response = await fetch('check_current_password.php', {
-                                method: 'POST',
-                                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                                body: new URLSearchParams({
-                                    csrf_token: form.querySelector('[name="csrf_token"]').value,
-                                    password: currentValueText
-                                })
-                            });
-                            const result = await response.json();
-                            if (!result.valid) {
-                                if (passwordStepError) passwordStepError.textContent = 'Current password is incorrect.';
-                                nextStep.disabled = false;
-                                nextStep.textContent = 'Next: Security Questions';
-                                if (currentValue) currentValue.focus();
-                                return;
-                            }
-                        } catch (requestError) {
-                            if (passwordStepError) passwordStepError.textContent = 'Could not verify the current password. Please try again.';
-                            nextStep.disabled = false;
-                            nextStep.textContent = 'Next: Security Questions';
-                            return;
-                        }
-                        nextStep.disabled = false;
-                        nextStep.textContent = 'Next: Security Questions';
-                    }
-                    setStep(2);
-                });
-            }
-
-            if (previousStep) previousStep.addEventListener('click', function () {
-                if (passwordStepError) passwordStepError.textContent = '';
-                setStep(1);
-            });
-
-            if (form) form.addEventListener('submit', function (event) {
-                const questions = form.querySelectorAll('[name^="question"]');
-                const answers = form.querySelectorAll('[name^="auth_a"]');
-                let error = '';
-                questions.forEach(function (field) { if (!field.value && !error) error = 'Please select all security questions.'; });
-                answers.forEach(function (field) { if (field.value.trim().length < 2 && !error) error = 'Each security answer must be at least 2 characters.'; });
-                if (error) {
-                    event.preventDefault();
-                    const securityError = document.getElementById('securityStepError');
-                    if (securityError) securityError.textContent = error;
-                }
-            });
-        });
-    </script>
 </body>
 </html>

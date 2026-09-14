@@ -70,13 +70,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $row = $result->fetch_assoc();
                     $uid = (int)$row['id'];
-                    $correctAnswers = 0;
+                    $ipAddress = substr((string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 0, 45);
+                    $attemptStmt = $conn->prepare('SELECT attempts, locked_until FROM recovery_attempts WHERE user_id = ? AND ip_address = ? LIMIT 1');
+                    $attemptStmt->bind_param('is', $uid, $ipAddress);
+                    $attemptStmt->execute();
+                    $attemptState = $attemptStmt->get_result()->fetch_assoc();
+                    $attemptStmt->close();
+                    if ($attemptState && !empty($attemptState['locked_until']) && strtotime($attemptState['locked_until']) > time()) {
+                        $errors[] = 'Too many verification attempts. Please try again later.';
+                    } else {
+                        $correctAnswers = 0;
                     $correctAnswers += password_verify($a1, $row['auth_a1'] ?? '') ? 1 : 0;
                     $correctAnswers += password_verify($a2, $row['auth_a2'] ?? '') ? 1 : 0;
                     $correctAnswers += password_verify($a3, $row['auth_a3'] ?? '') ? 1 : 0;
-                    if ($correctAnswers < 2) {
+                        if ($correctAnswers < 2) {
+                        $recordAttempt = $conn->prepare("INSERT INTO recovery_attempts (user_id, ip_address, attempts, locked_until) VALUES (?, ?, 1, NULL) ON DUPLICATE KEY UPDATE attempts = attempts + 1, locked_until = IF(attempts + 1 >= 5, DATE_ADD(NOW(), INTERVAL 15 MINUTE), locked_until)");
+                        $recordAttempt->bind_param('is', $uid, $ipAddress);
+                        $recordAttempt->execute();
+                        $recordAttempt->close();
                         $errors[] = 'At least two of the three authentication answers must match.';
-                    } else {
+                        } else {
+                        $clearAttempts = $conn->prepare('DELETE FROM recovery_attempts WHERE user_id = ? AND ip_address = ?');
+                        $clearAttempts->bind_param('is', $uid, $ipAddress);
+                        $clearAttempts->execute();
+                        $clearAttempts->close();
                         $otp = (string)random_int(100000, 999999);
                         $tokenHash = password_hash($otp, PASSWORD_DEFAULT);
                         $emailStmt = $conn->prepare('SELECT email FROM users WHERE id = ? LIMIT 1');
@@ -104,6 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $id_value = $row['id_number'];
                             $username = $row['username'];
                             $questions = [];
+                        }
                         }
                     }
                 }

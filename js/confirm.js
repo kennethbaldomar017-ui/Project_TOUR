@@ -56,19 +56,32 @@
         openConfirm(event);
     });
 
-    // Generic reveal toggles used across forms (eye icon inside .password-wrapper).
+    // Generic reveal toggles used across forms (eye icon or inline Show/Hide text).
     document.addEventListener('click', function (event) {
-        const trigger = event.target.closest('.toggle-pwd-icon');
+        const trigger = event.target.closest('.toggle-pwd-icon, .toggle-pwd');
         if (!trigger) return;
-        const wrapper = event.target.closest('.password-wrapper');
-        if (!wrapper) return;
-        const field = wrapper.querySelector('input');
-        if (!field) return;
-        if (field.type === 'password') {
-            field.type = 'text';
-            trigger.innerHTML = '&#128065;';
+
+        const targetSelector = trigger.getAttribute('data-target');
+        let field = null;
+
+        if (targetSelector) {
+            field = document.querySelector(targetSelector);
         } else {
-            field.type = 'password';
+            const wrapper = trigger.closest('.password-wrapper');
+            if (wrapper) field = wrapper.querySelector('input');
+        }
+
+        if (!field || field.tagName !== 'INPUT') return;
+
+        const isPassword = field.type === 'password';
+        field.type = isPassword ? 'text' : 'password';
+
+        if (trigger.classList.contains('toggle-pwd') || trigger.classList.contains('show-pwd')) {
+            trigger.textContent = isPassword ? 'Hide' : 'Show';
+        }
+
+        if (trigger.classList.contains('toggle-pwd-icon')) {
+            trigger.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
             trigger.innerHTML = '&#128065;';
         }
     });

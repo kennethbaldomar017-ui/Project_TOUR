@@ -39,7 +39,7 @@ if (!empty($_SESSION['lock_until']) && time() < $_SESSION['lock_until']) {
 }
 
 // Prepare statement to check if user exists and get their account state
-$stmt = $conn->prepare("SELECT id, username, password, first_name, last_name, role, status, deactivated_until, must_change_password FROM users WHERE id_number = ? OR username = ? LIMIT 1");
+$stmt = $conn->prepare("SELECT id, username, email, password, first_name, last_name, role, status, deactivated_until, must_change_password FROM users WHERE id_number = ? OR username = ? LIMIT 1");
 if (!$stmt) {
     $_SESSION['form_error'] = "Database error. Please try again.";
     header('Location: login.php');
@@ -79,41 +79,6 @@ if ($result->num_rows === 1) {
 
         session_regenerate_id(true);
 
-        if ($role === ROLE_SUPERADMIN) {
-            $superadminLock = acquire_superadmin_lock($conn, (int)$user_id, session_id());
-            if ($superadminLock !== true) {
-                if ($superadminLock === false) {
-                    log_audit_action($conn, $row, $row, 'blocked_superadmin_login', null, STATUS_ACTIVE, null, null, 'Another superadmin is already logged in');
-                    $_SESSION['form_error'] = 'Another superadmin is already logged in. Please wait for that superadmin to log out.';
-                } else {
-                    $_SESSION['form_error'] = 'Unable to verify superadmin availability. Please try again.';
-                }
-                $stmt->close();
-                header('Location: login.php');
-                exit();
-            }
-        }
-
-        // Set session variables
-        $_SESSION['user_id'] = $user_id;
-        $_SESSION['identifier'] = $identifier;
-        $_SESSION['username'] = $username;
-        $_SESSION['role'] = $role;
-        $_SESSION['logged_in'] = true;
-        
-        // Store user's full name in session
-        $_SESSION['first_name'] = $first_name;
-        $_SESSION['last_name'] = $last_name;
-
-        $presenceStmt = $conn->prepare('UPDATE users SET last_seen_at = NOW() WHERE id = ?');
-        if ($presenceStmt) {
-            $presenceStmt->bind_param('i', $user_id);
-            $presenceStmt->execute();
-            $presenceStmt->close();
-        }
-
-        log_audit_action($conn, $row, $row, 'login_success', null, STATUS_ACTIVE, null, null, 'Successful login');
-
         // Remove any lockout
         if (isset($_SESSION['lock_until'])) {
             unset($_SESSION['lock_until']);
@@ -122,34 +87,48 @@ if ($result->num_rows === 1) {
             unset($_SESSION['lockout_attempts']);
         }
 
+        $otp = (string)random_int(100000, 999999);
+        $tokenHash = password_hash($otp, PASSWORD_DEFAULT);
+        $conn->query('DELETE FROM otp_tokens WHERE user_id = ' . (int)$user_id . ' OR expires_at < NOW()');
+        $otpStmt = $conn->prepare("INSERT INTO otp_tokens (user_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
+        if (!$otpStmt) {
+            $stmt->close();
+            $_SESSION['form_error'] = 'Unable to start email verification. Please try again.';
+            header('Location: login.php');
+            exit();
+        }
+        $otpStmt->bind_param('is', $user_id, $tokenHash);
+        $otpCreated = $otpStmt->execute();
+        $otpStmt->close();
+
+        $email = trim((string)($row['email'] ?? ''));
+        $sent = $otpCreated && $email !== '' && @mail(
+            $email,
+            'PRIME. login verification code',
+            "Your PRIME. login verification code is {$otp}. It expires in 10 minutes."
+        );
+        if (!$sent) {
+            $conn->query('DELETE FROM otp_tokens WHERE user_id = ' . (int)$user_id);
+            $stmt->close();
+            $_SESSION['form_error'] = 'The verification email could not be sent. Please try again.';
+            header('Location: login.php');
+            exit();
+        }
+
+        session_regenerate_id(true);
+        $_SESSION['pending_login'] = [
+            'user_id' => $user_id,
+            'identifier' => $identifier,
+            'started_at' => time(),
+        ];
+
         // Clear form error if any
         if (isset($_SESSION['form_error'])) {
             unset($_SESSION['form_error']);
         }
 
         $stmt->close();
-        $conn->close();
-
-        // Set success message and redirect
-        $_SESSION['success'] = "Login successful! Welcome back.";
-        
-        // Ensure headers are not already sent
-        if (headers_sent($filename, $linenum)) {
-            die("Headers already sent in $filename on line $linenum. Cannot redirect to dashboard.php");
-        }
-        
-        // Clear localStorage on successful login
-        echo '<script>localStorage.removeItem("lockoutRemaining");</script>';
-        
-        // Accounts created with a temporary password must set their own first.
-        if (!empty($row['must_change_password'])) {
-            $_SESSION['force_pwd_change'] = true;
-            header('Location: edit_info.php');
-            exit();
-        }
-        
-        // Force immediate redirect
-        header('Location: dashboard.php');
+        header('Location: login_otp.php');
         exit();
     } else {
         // Password is incorrect

@@ -3,6 +3,7 @@ require_once 'config.php';
 $actor = require_login($conn);
 $canCreateAdmin = $actor['role'] === ROLE_SUPERADMIN;
 $token = csrf_token();
+$nextIdNumber = next_static_id_number($conn);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -41,7 +42,7 @@ $token = csrf_token();
                 <div class="form-grid">
                     <div>
                         <label>ID Number <span class="req">*</span></label>
-                        <input type="text" name="id_number" required pattern="[0-9]{4}-[0-9]{4}" title="Format: 4 digits - 4 digits" placeholder="2026-0001">
+                        <input type="text" name="id_number" value="<?= e($nextIdNumber); ?>" readonly required pattern="[0-9]{4}-[0-9]{4}" title="Format: 4 digits - 4 digits" placeholder="2026-0001">
                     </div>
                     <div>
                         <label>Role <span class="req">*</span></label>
@@ -65,10 +66,6 @@ $token = csrf_token();
                     <div>
                         <label>Username <span class="req">*</span></label>
                         <input type="text" name="username" required minlength="8" maxlength="16" pattern="[A-Za-z0-9_.\-]{8,16}">
-                    </div>
-                    <div class="span-2">
-                        <label>Reason or comment</label>
-                        <textarea name="reason" rows="2" placeholder="Optional"></textarea>
                     </div>
                 </div>
                 <div class="admin-note">

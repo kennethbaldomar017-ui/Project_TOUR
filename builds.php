@@ -26,6 +26,21 @@ if ($itemsResult) {
         $itemsByBuild[(int)$item['build_id']][] = $item;
     }
 }
+
+$quotedCount = 0;
+$reservedCount = 0;
+$soldCount = 0;
+$buildValue = 0.0;
+foreach ($builds as $build) {
+    $buildValue += (float)$build['build_total'];
+    if ($build['status'] === 'quoted') {
+        $quotedCount++;
+    } elseif ($build['status'] === 'reserved') {
+        $reservedCount++;
+    } elseif ($build['status'] === 'sold') {
+        $soldCount++;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -45,16 +60,25 @@ if ($itemsResult) {
         <div class="form-success" id="alertBox"><?= e($_SESSION['success']); unset($_SESSION['success']); ?></div>
     <?php endif; ?>
 
-    <main class="container admin-page">
+    <main class="container admin-page tech-page builds-page">
         <section class="admin-panel tech-panel">
             <div class="admin-heading">
                 <div>
+                    <p class="page-eyebrow">CONFIGURATION STUDIO</p>
                     <h2>PC Build Planner</h2>
                     <p>Quote, reserve, or sell computer builds from available stock.</p>
                 </div>
             </div>
 
-            <form class="tech-form-grid" action="build_action.php" method="post">
+            <div class="tech-kpis" aria-label="Build summary">
+                <div><span>Saved builds</span><strong><?= number_format(count($builds)); ?></strong><small>latest 50 builds</small></div>
+                <div><span>Quotes</span><strong><?= number_format($quotedCount); ?></strong><small>awaiting decision</small></div>
+                <div><span>Reserved</span><strong><?= number_format($reservedCount); ?></strong><small>stock held</small></div>
+                <div class="is-accent"><span>Pipeline value</span><strong><?= e(peso($buildValue)); ?></strong><small>current build totals</small></div>
+            </div>
+
+            <div class="tech-section-heading"><div><span class="page-eyebrow">NEW CONFIGURATION</span><h3>Assemble a build</h3></div><p><?= number_format($soldCount); ?> sold in recent builds</p></div>
+            <form class="tech-form-grid build-form" action="build_action.php" method="post">
                 <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
                 <label>Build Name<span class="req"> *</span><input type="text" name="build_name" placeholder="Gaming Ryzen Build" required></label>
                 <label>Customer<input type="text" name="customer_name" placeholder="Walk-in / client name"></label>
@@ -69,6 +93,7 @@ if ($itemsResult) {
                 <label class="span-2">Notes<textarea name="notes" rows="2" placeholder="Use case, target FPS, compatibility notes, warranty terms"></textarea></label>
 
                 <div class="span-2 build-lines">
+                    <div class="build-lines-heading"><span>Components</span><small>Choose available parts and quantities</small></div>
                     <?php for ($i = 0; $i < 8; $i++): ?>
                         <div class="build-line">
                             <select name="part_id[]" aria-label="Build part <?= $i + 1; ?>">
@@ -86,6 +111,7 @@ if ($itemsResult) {
                 <button class="btn btn-primary span-2" type="submit" <?= !$parts ? 'disabled' : ''; ?>>Create Build</button>
             </form>
 
+            <div class="tech-section-heading saved-builds-heading"><div><span class="page-eyebrow">BUILD PIPELINE</span><h3>Saved builds</h3></div><p>Most recent first</p></div>
             <div class="build-list">
                 <?php foreach ($builds as $build): ?>
                     <article class="build-card">

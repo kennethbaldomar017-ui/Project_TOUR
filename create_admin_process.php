@@ -15,12 +15,14 @@ function clean_admin_value($value): string {
 }
 
 $idNumber = clean_admin_value($_POST['id_number'] ?? '');
+if ($idNumber === '') {
+    $idNumber = next_static_id_number($conn);
+}
 $firstName = clean_admin_value($_POST['first_name'] ?? '');
 $lastName = clean_admin_value($_POST['last_name'] ?? '');
 $email = clean_admin_value($_POST['email'] ?? '');
 $username = clean_admin_value($_POST['username'] ?? '');
 $role = $_POST['role'] ?? ROLE_ADMIN;
-$reason = clean_admin_value($_POST['reason'] ?? '');
 
 $errors = [];
 if (!can_create_role($actor, $role) || !in_array($role, [ROLE_ADMIN, ROLE_SUPERADMIN], true)) {
@@ -127,7 +129,7 @@ try {
         'role' => $role,
         'status' => STATUS_ACTIVE,
     ];
-    if (!log_audit_action($conn, $actor, $target, 'account_creation', null, STATUS_ACTIVE, null, null, $reason ?: 'Created with temporary password')) {
+    if (!log_audit_action($conn, $actor, $target, 'account_creation', null, STATUS_ACTIVE, null, null, 'Created with temporary password')) {
         throw new RuntimeException('Could not write audit log.');
     }
     $conn->commit();

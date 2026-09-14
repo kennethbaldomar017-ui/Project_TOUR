@@ -66,7 +66,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `id_number`, `username`, `first_name`, `middle_name`, `last_name`, `extension`, `birthdate`, `age`, `street`, `barangay`, `city`, `province`, `country`, `zip`, `email`, `password`, `role`, `status`, `deactivation_duration`, `deactivated_until`, `status_reason`, `status_changed_at`, `auth_q1`, `auth_a1`, `auth_q2`, `auth_a2`, `auth_q3`, `auth_a3`, `created_at`) VALUES
-(5, '2023-1016', 'kenneth', 'Kenneth', 'A', 'Baldomar', '', '2003-07-12', 22, 'Quarry Street', 'Barangay 9', 'cabadbaran city', 'agusan del norte', 'Philippines', '8605', 'kenneth@gmail.com', '$2y$10$TBkUSsQd3FgsJB60n81JLu0JPu.sV0xpApK//XjBnkovOdvUhuuBK', 'superadmin', 'active', NULL, NULL, NULL, NULL, 'best_friend_elem', 'me', 'birth_place', 'me', 'favorite_food', 'me', '2025-11-04 16:18:58');
+(5, '2023-1016', 'kenneth', 'Kenneth', 'A', 'Baldomar', '', '2003-07-12', 22, 'Quarry Street', 'Barangay 9', 'cabadbaran city', 'agusan del norte', 'Philippines', '8605', 'kenneth@gmail.com', '$2y$10$TBkUSsQd3FgsJB60n81JLu0JPu.sV0xpApK//XjBnkovOdvUhuuBK', 'superadmin', 'active', NULL, NULL, NULL, NULL, 'best_friend_elem', '$2y$10$Fd6QHxTTm3qYapOHxsG1ROOoGe0LJmmLhNzpnPwG76kBPLsaPp68m', 'birth_place', '$2y$10$jF/em6iSzHjgYQJ2XcRP2uR.CAAcbq9BS1zoA/kbm9jLfaMCEIMTW', 'favorite_food', '$2y$10$qbQM2XtstIimkWt1eLKSdOWh/xTmxeR7owZND8QmfLwdEFoDVGJfO', '2025-11-04 16:18:58');
 
 -- --------------------------------------------------------
 
@@ -128,6 +128,37 @@ CREATE TABLE `otp_tokens` (
   `attempts` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
   `used_at` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `deletion_requests` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `target_id` int(11) NOT NULL,
+  `target_id_number` varchar(20) NOT NULL,
+  `target_username` varchar(100) NOT NULL,
+  `target_name` varchar(255) NOT NULL,
+  `target_email` varchar(150) NOT NULL,
+  `target_role` varchar(20) NOT NULL,
+  `target_status` varchar(30) NOT NULL,
+  `requested_by` int(11) NOT NULL,
+  `reason` varchar(255) NOT NULL,
+  `status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `reviewed_by` int(11) DEFAULT NULL,
+  `review_reason` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `reviewed_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_deletion_status` (`status`),
+  KEY `idx_deletion_target` (`target_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `recovery_attempts` (
+  `user_id` int(11) NOT NULL,
+  `ip_address` varchar(45) NOT NULL,
+  `attempts` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `locked_until` datetime DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`user_id`,`ip_address`),
+  KEY `idx_recovery_locked` (`locked_until`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --

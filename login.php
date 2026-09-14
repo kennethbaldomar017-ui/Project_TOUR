@@ -43,7 +43,7 @@ if (isset($_SESSION['failed_logins'])) {
 <?php endif; ?>
 
 <main class="container auth-page">
-    <div class="auth-card">
+    <div class="auth-card login-card">
         <h2>Login</h2>
         <p class="auth-subtitle">Welcome back. Please sign in to continue.</p>
 

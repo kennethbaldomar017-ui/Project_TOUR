@@ -44,7 +44,7 @@ if (!$canReset) {
     <?php endif; ?>
 
     <main class="container auth-page">
-        <div class="auth-card">
+        <div class="auth-card reset-password-card">
             <h2>Reset Password</h2>
             <p class="auth-subtitle">Generate a fresh temporary password for this account</p>
 
@@ -79,7 +79,7 @@ if (!$canReset) {
 
                 <p class="modal-hint">The temporary password is hidden. Reveal it only when sharing with the account owner.</p>
 
-                <div class="step-buttons">
+                <div class="step-buttons reset-password-actions">
                     <a class="muted-link" href="admin_users.php">Back to users</a>
                     <button type="submit" class="btn btn-primary btn-block">Generate Temporary Password</button>
                 </div>

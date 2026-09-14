@@ -8,6 +8,7 @@ const ROLE_SUPERADMIN = 'superadmin';
 const STATUS_ACTIVE = 'active';
 const STATUS_PENDING = 'pending';
 const STATUS_DEACTIVATED = 'deactivated';
+const SESSION_IDLE_TIMEOUT = 1800;
 
 // System privileges granted by a superadmin to administrators.
 // The superadmin role implicitly holds every privilege.
@@ -48,24 +49,22 @@ function e($value) {
 
 function send_account_credentials_email(array $account, string $temporaryPassword): bool {
     $email = trim((string)($account['email'] ?? ''));
-    $username = trim((string)($account['username'] ?? ''));
-    if ($email === '' || $username === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         return false;
     }
 
     $firstName = trim((string)($account['first_name'] ?? ''));
     $greeting = $firstName !== '' ? 'Hello ' . $firstName . ',' : 'Hello,';
     $message = $greeting . "\n\n"
-        . "Your PRIME. account credentials are ready.\n\n"
-        . "Username: {$username}\n"
-        . "Temporary password: {$temporaryPassword}\n\n"
-        . "Please sign in and change this temporary password immediately.\n\n"
+        . "Your PRIME. account has been created successfully.\n\n"
+        . "Your username and temporary password were provided through a secure, private channel and were not included in this email for security reasons.\n\n"
+        . "Please sign in using the credentials issued to you privately and change the temporary password immediately after your first login.\n\n"
         . "If you did not expect this email, contact your administrator.\n";
     $headers = "From: PRIME. <primetechcompany@gmail.com>\r\n"
         . "Reply-To: primetechcompany@gmail.com\r\n"
         . "Content-Type: text/plain; charset=UTF-8\r\n";
 
-    return @mail($email, 'PRIME. account credentials', $message, $headers);
+    return @mail($email, 'PRIME. account created', $message, $headers);
 }
 
 function ensure_rbac_schema(mysqli $conn): void {
@@ -172,6 +171,37 @@ function ensure_rbac_schema(mysqli $conn): void {
         KEY idx_otp_expiry (expires_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
+    $conn->query("CREATE TABLE IF NOT EXISTS deletion_requests (
+        id INT(11) NOT NULL AUTO_INCREMENT,
+        target_id INT(11) NOT NULL,
+        target_id_number VARCHAR(20) NOT NULL,
+        target_username VARCHAR(100) NOT NULL,
+        target_name VARCHAR(255) NOT NULL,
+        target_email VARCHAR(150) NOT NULL,
+        target_role VARCHAR(20) NOT NULL,
+        target_status VARCHAR(30) NOT NULL,
+        requested_by INT(11) NOT NULL,
+        reason VARCHAR(255) NOT NULL,
+        status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+        reviewed_by INT(11) DEFAULT NULL,
+        review_reason VARCHAR(255) DEFAULT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        reviewed_at DATETIME DEFAULT NULL,
+        PRIMARY KEY (id),
+        KEY idx_deletion_status (status),
+        KEY idx_deletion_target (target_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS recovery_attempts (
+        user_id INT(11) NOT NULL,
+        ip_address VARCHAR(45) NOT NULL,
+        attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+        locked_until DATETIME DEFAULT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, ip_address),
+        KEY idx_recovery_locked (locked_until)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
     $superadminCount = 0;
     $countResult = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role = 'superadmin'");
     if ($countResult) {
@@ -213,6 +243,17 @@ function current_app_user(mysqli $conn): ?array {
         return null;
     }
 
+    if (!empty($_SESSION['last_activity']) && time() - (int)$_SESSION['last_activity'] > SESSION_IDLE_TIMEOUT) {
+        $expiredUserId = (int)$_SESSION['user_id'];
+        if (($_SESSION['role'] ?? '') === ROLE_SUPERADMIN) {
+            release_superadmin_lock($conn, $expiredUserId, session_id());
+        }
+        clear_user_presence($conn, $expiredUserId);
+        session_unset();
+        session_destroy();
+        return null;
+    }
+
     $stmt = $conn->prepare("SELECT id, username, first_name, last_name, role, status, must_change_password FROM users WHERE id = ? LIMIT 1");
     if (!$stmt) {
         return null;
@@ -230,6 +271,7 @@ function current_app_user(mysqli $conn): ?array {
 
     $_SESSION['role'] = $user['role'];
     $_SESSION['username'] = $user['username'];
+    $_SESSION['last_activity'] = time();
     $presenceStmt = $conn->prepare('UPDATE users SET last_seen_at = NOW() WHERE id = ?');
     if ($presenceStmt) {
         $presenceStmt->bind_param('i', $user['id']);
@@ -297,6 +339,10 @@ function can_manage_account(?mysqli $conn, array $actor, array $target, string $
         return false;
     }
 
+    if ((int)$actor['id'] === (int)$target['id'] && $action === 'update_info') {
+        return true;
+    }
+
     if ($actor['role'] === ROLE_SUPERADMIN) {
         return true;
     }
@@ -341,7 +387,7 @@ function can_create_role(array $actor, string $role): bool {
 }
 
 function get_user_by_id(mysqli $conn, int $id): ?array {
-    $stmt = $conn->prepare("SELECT id, id_number, username, first_name, last_name, email, role, status, deactivation_duration, deactivated_until, status_reason FROM users WHERE id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT id, id_number, username, first_name, middle_name, last_name, extension, birthdate, age, street, barangay, city, province, country, zip, email, role, status, deactivation_duration, deactivated_until, status_reason FROM users WHERE id = ? LIMIT 1");
     if (!$stmt) {
         return null;
     }
@@ -601,8 +647,32 @@ function mask_id_number(string $value): string {
     return $masked;
 }
 
+function next_static_id_number(mysqli $conn): string {
+    $year = (int) date('Y');
+    $pattern = $year . '-%';
+    $stmt = $conn->prepare('SELECT id_number FROM users WHERE id_number LIKE ? ORDER BY id_number DESC LIMIT 1');
+    $stmt->bind_param('s', $pattern);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    $nextNumber = 1;
+    if ($row && !empty($row['id_number'])) {
+        $digits = (int) substr($row['id_number'], -4);
+        if ($digits > 0) {
+            $nextNumber = $digits + 1;
+        }
+    }
+
+    return sprintf('%d-%04d', $year, $nextNumber);
+}
+
 function generate_default_password(): string {
-    return 'PR1ME-' . strtoupper(bin2hex(random_bytes(5)));
+    $prefix = 'TMP';
+    $year = (int) date('Y');
+    $rand = strtoupper(bin2hex(random_bytes(3)));
+    return sprintf('%s-%d-%s', $prefix, $year, $rand);
 }
 
 function security_question_options(): array {

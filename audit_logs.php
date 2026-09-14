@@ -1,7 +1,7 @@
 <?php
 require_once 'config.php';
-$actor = require_admin($conn);
-$canViewAuditLogs = user_has_privilege($conn, $actor, PRIV_VIEW_AUDIT_LOGS);
+$actor = require_privilege($conn, require_login($conn), PRIV_VIEW_AUDIT_LOGS);
+$canViewAuditLogs = true;
 
 $search = trim($_GET['search'] ?? '');
 $actionFilter = trim($_GET['action'] ?? '');
@@ -59,12 +59,12 @@ if ($params) {
 $countStmt->execute();
 $totalLogs = (int)$countStmt->get_result()->fetch_assoc()['total'];
 $countStmt->close();
-$totalPages = max(1, (int)ceil($totalLogs / $perPage));
+$totalPages = min(20, max(1, (int)ceil($totalLogs / $perPage)));
 $page = min($page, $totalPages);
 $offset = ($page - 1) * $perPage;
 
 $sql = "SELECT actor_id, actor_username, actor_role, target_id, target_username, target_role,
-        action, previous_status, new_status, deactivation_duration, deactivated_until,
+    action, previous_status, new_status,
         reason, ip_address, user_agent, created_at
         FROM audit_logs";
 $sql .= $whereSql . ' ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?';
@@ -148,7 +148,6 @@ if ($actionResult) {
                             <th>Target</th>
                             <th>Action</th>
                             <th>Status</th>
-                            <th>Duration</th>
                             <th>Context</th>
                         </tr>
                     </thead>
@@ -166,12 +165,6 @@ if ($actionResult) {
                             </td>
                             <td><span class="audit-action audit-action-<?= e($log['action']); ?>"><?= e(str_replace('_', ' ', $log['action'])); ?></span></td>
                             <td class="audit-status"><?= e($log['previous_status'] ?? ''); ?> <b>&rarr;</b> <?= e($log['new_status'] ?? ''); ?></td>
-                            <td>
-                                <?= e(duration_label($log['deactivation_duration'])); ?>
-                                <?php if ($log['deactivated_until']): ?>
-                                    <span>until <?= e($log['deactivated_until']); ?></span>
-                                <?php endif; ?>
-                            </td>
                             <td class="audit-context" title="<?= e($log['user_agent'] ?? ''); ?>">
                                 <strong><?= e($log['reason'] ?: 'No reason provided'); ?></strong>
                                 <span><?= e($log['ip_address'] ?: 'Unknown IP'); ?></span>
@@ -179,7 +172,7 @@ if ($actionResult) {
                         </tr>
                     <?php endforeach; ?>
                     <?php if (!$logs): ?>
-                        <tr><td class="empty-state" colspan="7"><strong>No audit entries found</strong><span>Try changing the filters or check back after more system activity.</span></td></tr>
+                        <tr><td class="empty-state" colspan="6"><strong>No audit entries found</strong><span>Try changing the filters or check back after more system activity.</span></td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>

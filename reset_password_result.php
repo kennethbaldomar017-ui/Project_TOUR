@@ -22,7 +22,7 @@ $credentialsEmailSent = !empty($_SESSION['credentials_email_sent']);
     <?php include 'header.php'; ?>
 
     <main class="container auth-page">
-        <div class="auth-card">
+        <div class="auth-card generated-password-result-card">
             <div class="result-icon result-icon-success">&#10003;</div>
             <h2 class="result-heading">Password Reset Complete</h2>
             <p class="auth-subtitle">
@@ -32,29 +32,28 @@ $credentialsEmailSent = !empty($_SESSION['credentials_email_sent']);
             </p>
             <p class="help-text <?= $credentialsEmailSent ? '' : 'form-error'; ?>">
                 <?= $credentialsEmailSent
-                    ? 'The username and temporary password were emailed to ' . e($account['email']) . '.'
-                    : 'The password was reset, but the credential email could not be sent.'; ?>
+                    ? 'A security notice was emailed to ' . e($account['email']) . '. The username and temporary password are not included in email for security reasons.'
+                    : 'The password was reset, but the security notice email could not be sent.'; ?>
             </p>
 
             <div class="generated-password-card">
                 <div class="verification-header">Temporary Password — shown once</div>
                 <p class="modal-hint">Share this password with the account owner privately. They must set a new password on their next login.</p>
-                <div class="password-wrapper generated-password-value">
-                    <input type="password" id="generatedPasswordValue" value="<?= e($generatedPassword); ?>" readonly>
-                    <span class="toggle-pwd-icon" data-reveal-pwd> &#128065;</span>
+                <div class="generated-password-value">
+                    <div class="password-wrapper">
+                        <input type="password" id="generatedPasswordValue" value="<?= e($generatedPassword); ?>" readonly>
+                        <button type="button" class="toggle-pwd-icon" data-reveal-pwd aria-label="Show password">&#128065;</button>
+                    </div>
                     <button type="button" class="copy-btn" id="copyPassword" title="Copy to clipboard">Copy</button>
                 </div>
                 <div class="help-text generated-help">This password is hidden by default. Use the eye to reveal it, and the copy button to copy it.</div>
             </div>
 
-            <form action="clear_generated_password.php" method="post">
+            <form action="clear_generated_password.php" method="post" class="generated-password-done-form">
                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()); ?>">
+                <div class="auth-links"><a class="muted-link" href="admin_users.php">Back to user management</a></div>
                 <button type="submit" class="btn btn-primary btn-block">I've saved the password — Done</button>
             </form>
-
-            <div class="auth-links">
-                <p><a class="muted-link" href="admin_users.php">Back to user management</a></p>
-            </div>
         </div>
     </main>
 
@@ -70,22 +69,30 @@ $credentialsEmailSent = !empty($_SESSION['credentials_email_sent']);
                 reveal.addEventListener('click', function () {
                     if (input.type === 'password') {
                         input.type = 'text';
-                        reveal.innerHTML = '&#128065;';
+                        reveal.setAttribute('aria-label', 'Hide password');
                     } else {
                         input.type = 'password';
-                        reveal.innerHTML = '&#128065;';
+                        reveal.setAttribute('aria-label', 'Show password');
                     }
                 });
             }
 
             if (copyBtn && input) {
                 copyBtn.addEventListener('click', function () {
+                    const password = input.value;
+                    const showCopied = function () {
+                        copyBtn.textContent = 'Copied!';
+                        setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1500);
+                    };
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(password).then(showCopied);
+                        return;
+                    }
                     input.type = 'text';
                     input.select();
                     input.setSelectionRange(0, 99999);
-                    document.execCommand('copy');
-                    copyBtn.textContent = 'Copied!';
-                    setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1500);
+                    if (document.execCommand('copy')) showCopied();
+                    input.type = 'password';
                 });
             }
         });

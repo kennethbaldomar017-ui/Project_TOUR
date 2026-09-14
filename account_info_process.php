@@ -20,8 +20,18 @@ if (!$target || !can_manage_account($conn, $actor, $target, 'update_info')) {
 $idNumber = trim((string)($_POST['id_number'] ?? ''));
 $username = trim((string)($_POST['username'] ?? ''));
 $firstName = trim((string)($_POST['first_name'] ?? ''));
+$middleName = trim((string)($_POST['middle_name'] ?? ''));
 $lastName = trim((string)($_POST['last_name'] ?? ''));
+$extension = trim((string)($_POST['extension'] ?? ''));
+$birthdate = trim((string)($_POST['birthdate'] ?? ''));
+$age = trim((string)($_POST['age'] ?? ''));
 $email = trim((string)($_POST['email'] ?? ''));
+$street = trim((string)($_POST['street'] ?? ''));
+$barangay = trim((string)($_POST['barangay'] ?? ''));
+$city = trim((string)($_POST['city'] ?? ''));
+$province = trim((string)($_POST['province'] ?? ''));
+$country = trim((string)($_POST['country'] ?? ''));
+$zip = trim((string)($_POST['zip'] ?? ''));
 $errors = [];
 
 if (!preg_match('/^[0-9]{4}-[0-9]{4}$/', $idNumber)) {
@@ -55,8 +65,8 @@ if ($errors) {
 }
 
 try {
-    $stmt = $conn->prepare('UPDATE users SET id_number = ?, username = ?, first_name = ?, last_name = ?, email = ? WHERE id = ?');
-    $stmt->bind_param('sssssi', $idNumber, $username, $firstName, $lastName, $email, $targetId);
+    $stmt = $conn->prepare('UPDATE users SET id_number = ?, username = ?, first_name = ?, middle_name = ?, last_name = ?, extension = ?, birthdate = ?, age = ?, street = ?, barangay = ?, city = ?, province = ?, country = ?, zip = ?, email = ? WHERE id = ?');
+    $stmt->bind_param('sssssssssssssssi', $idNumber, $username, $firstName, $middleName, $lastName, $extension, $birthdate, $age, $street, $barangay, $city, $province, $country, $zip, $email, $targetId);
     $stmt->execute();
     $stmt->close();
 
@@ -64,7 +74,17 @@ try {
     $updatedTarget['id_number'] = $idNumber;
     $updatedTarget['username'] = $username;
     $updatedTarget['first_name'] = $firstName;
+    $updatedTarget['middle_name'] = $middleName;
     $updatedTarget['last_name'] = $lastName;
+    $updatedTarget['extension'] = $extension;
+    $updatedTarget['birthdate'] = $birthdate;
+    $updatedTarget['age'] = $age;
+    $updatedTarget['street'] = $street;
+    $updatedTarget['barangay'] = $barangay;
+    $updatedTarget['city'] = $city;
+    $updatedTarget['province'] = $province;
+    $updatedTarget['country'] = $country;
+    $updatedTarget['zip'] = $zip;
     $updatedTarget['email'] = $email;
     log_audit_action($conn, $actor, $updatedTarget, 'account_info_update', $target['status'], $target['status'], null, null, 'Account information updated');
 
@@ -74,7 +94,7 @@ try {
         $_SESSION['last_name'] = $lastName;
     }
     $_SESSION['success'] = 'Account information updated.';
-    header('Location: admin_users.php');
+    header('Location: ' . ((int)$actor['id'] === $targetId ? 'edit_info.php' : 'admin_users.php'));
     exit;
 } catch (Throwable $e) {
     $_SESSION['form_error'] = 'Could not update account information: ' . $e->getMessage();

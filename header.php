@@ -23,25 +23,31 @@ $avatar_letters = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $display_nam
                 <?php if (in_array($_SESSION['role'], ['admin', 'superadmin'], true)): ?>
                     <a class="<?= $current_page === 'manage_privileges.php' ? 'active' : ''; ?>" href="manage_privileges.php"><span class="sidebar-icon">&#9881;</span>Privileges</a>
                 <?php endif; ?>
+                <?php if ($_SESSION['role'] === 'superadmin'): ?>
+                    <a class="<?= $current_page === 'deletion_requests.php' ? 'active' : ''; ?>" href="deletion_requests.php"><span class="sidebar-icon">&#10006;</span>Deletion Requests</a>
+                <?php endif; ?>
             </nav>
             <div class="admin-sidebar-footer">
-                <a href="edit_info.php" class="admin-account-link">
+                <div class="admin-account-link">
                     <span class="admin-avatar small"><?= e($avatar_letters); ?></span>
                     <span><strong><?= e($display_name); ?></strong><small><?= e(ucfirst($_SESSION['role'])); ?></small></span>
-                </a>
-                <a href="logout.php" class="admin-logout">Log out</a>
+                </div>
             </div>
         </aside>
         <div class="admin-workspace">
             <header class="admin-topbar">
                 <div class="admin-mobile-brand">PRIME<span>.</span></div>
                 <div class="admin-topbar-tools">
-                    <label class="admin-search"><span>&#9906;</span><input type="search" placeholder="Search..."></label>
+                    <form class="admin-search" action="admin_users.php" method="get">
+                        <span aria-hidden="true">&#9906;</span>
+                        <input type="search" name="search" placeholder="Search users..." aria-label="Search users">
+                    </form>
                     <a href="audit_logs.php" class="admin-topbar-icon" aria-label="Notifications">&#128276;</a>
                     <details class="admin-account-menu">
                         <summary class="admin-avatar" aria-label="Open account menu"><?= e($avatar_letters); ?></summary>
                         <div class="admin-account-dropdown">
                             <a href="edit_info.php">Account Settings</a>
+                            <a href="change_password_authenticated.php">Change Password</a>
                             <a href="logout.php">Log Out</a>
                         </div>
                     </details>

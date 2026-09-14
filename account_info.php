@@ -55,9 +55,49 @@ $token = csrf_token();
                             <label for="last_name">Last Name <span class="req">*</span></label>
                             <input id="last_name" type="text" name="last_name" value="<?= e($target['last_name']); ?>" required maxlength="100">
                         </div>
+                        <div>
+                            <label for="middle_name">Middle Name</label>
+                            <input id="middle_name" type="text" name="middle_name" value="<?= e($target['middle_name'] ?? ''); ?>" maxlength="100">
+                        </div>
+                        <div>
+                            <label for="extension">Extension</label>
+                            <input id="extension" type="text" name="extension" value="<?= e($target['extension'] ?? ''); ?>" maxlength="10">
+                        </div>
+                        <div>
+                            <label for="birthdate">Birthdate</label>
+                            <input id="birthdate" type="date" name="birthdate" value="<?= e($target['birthdate'] ?? ''); ?>">
+                        </div>
+                        <div>
+                            <label for="age">Age</label>
+                            <input id="age" type="text" name="age" value="<?= e($target['age'] ?? ''); ?>" maxlength="3">
+                        </div>
                         <div class="span-2">
                             <label for="email">Email <span class="req">*</span></label>
                             <input id="email" type="email" name="email" value="<?= e($target['email']); ?>" required maxlength="150">
+                        </div>
+                        <div>
+                            <label for="street">Street / Purok</label>
+                            <input id="street" type="text" name="street" value="<?= e($target['street'] ?? ''); ?>" maxlength="150">
+                        </div>
+                        <div>
+                            <label for="barangay">Barangay</label>
+                            <input id="barangay" type="text" name="barangay" value="<?= e($target['barangay'] ?? ''); ?>" maxlength="100">
+                        </div>
+                        <div>
+                            <label for="city">City / Municipality</label>
+                            <input id="city" type="text" name="city" value="<?= e($target['city'] ?? ''); ?>" maxlength="100">
+                        </div>
+                        <div>
+                            <label for="province">Province</label>
+                            <input id="province" type="text" name="province" value="<?= e($target['province'] ?? ''); ?>" maxlength="100">
+                        </div>
+                        <div>
+                            <label for="country">Country</label>
+                            <input id="country" type="text" name="country" value="<?= e($target['country'] ?? ''); ?>" maxlength="100">
+                        </div>
+                        <div>
+                            <label for="zip">ZIP Code</label>
+                            <input id="zip" type="text" name="zip" value="<?= e($target['zip'] ?? ''); ?>" maxlength="10">
                         </div>
                     </div>
                 </fieldset>

@@ -43,6 +43,20 @@ if ($params) {
 $stmt->execute();
 $parts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
+
+$lowStockCount = 0;
+$availableCount = 0;
+$inventoryValue = 0.0;
+$categoryCount = count(array_unique(array_filter(array_column($parts, 'category'))));
+foreach ($parts as $part) {
+    if ((int)$part['stock'] <= (int)$part['reorder_level']) {
+        $lowStockCount++;
+    }
+    if ((int)$part['stock'] > 0) {
+        $availableCount++;
+    }
+    $inventoryValue += (int)$part['stock'] * (float)$part['unit_cost'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -62,14 +76,22 @@ $stmt->close();
         <div class="form-success" id="alertBox"><?= e($_SESSION['success']); unset($_SESSION['success']); ?></div>
     <?php endif; ?>
 
-    <main class="container admin-page">
+    <main class="container admin-page tech-page inventory-page">
         <section class="admin-panel tech-panel">
             <div class="admin-heading">
                 <div>
+                    <p class="page-eyebrow">STOCK CONTROL</p>
                     <h2>Computer Parts Inventory</h2>
                     <p>Track stock, cost, selling price, supplier, and build compatibility notes.</p>
                 </div>
-                <button class="btn btn-primary" type="button" id="openPartModal">Add Part</button>
+                <button class="btn btn-primary tech-heading-action" type="button" id="openPartModal"><span aria-hidden="true">+</span> Add Part</button>
+            </div>
+
+            <div class="tech-kpis" aria-label="Inventory summary">
+                <div><span>Total parts</span><strong><?= number_format(count($parts)); ?></strong><small><?= $categoryCount; ?> categories</small></div>
+                <div><span>Available</span><strong><?= number_format($availableCount); ?></strong><small>with stock on hand</small></div>
+                <div class="is-warning"><span>Low stock</span><strong><?= number_format($lowStockCount); ?></strong><small>at or below reorder level</small></div>
+                <div><span>Cost value</span><strong><?= e(peso($inventoryValue)); ?></strong><small>current stock at unit cost</small></div>
             </div>
 
             <div class="inventory-modal-backdrop" id="partModal" hidden>
@@ -104,6 +126,7 @@ $stmt->close();
             </div>
 
             <form class="filter-bar tech-filter" method="get">
+                <span class="filter-label">Find a part</span>
                 <input type="search" name="search" value="<?= e($search); ?>" placeholder="Search SKU, part, brand, model, supplier">
                 <select name="category">
                     <option value="">All categories</option>
@@ -120,7 +143,7 @@ $stmt->close();
             </form>
 
             <div class="table-wrap">
-                <table class="admin-table">
+                <table class="admin-table inventory-table">
                     <thead>
                         <tr>
                             <th>Part</th>

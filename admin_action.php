@@ -66,6 +66,25 @@ try {
         }
 
         if ($actor['role'] === ROLE_ADMIN) {
+            if ($reason === '' || strlen($reason) > 255) {
+                throw new RuntimeException('A deletion reason is required (maximum 255 characters).');
+            }
+            $pendingStmt = $conn->prepare("SELECT id FROM deletion_requests WHERE target_id = ? AND status = 'pending' LIMIT 1");
+            $pendingStmt->bind_param('i', $targetId);
+            $pendingStmt->execute();
+            $hasPending = $pendingStmt->get_result()->num_rows > 0;
+            $pendingStmt->close();
+            if ($hasPending) {
+                throw new RuntimeException('A deletion request for this account is already pending.');
+            }
+            $targetName = trim($target['first_name'] . ' ' . $target['last_name']);
+            $requestStmt = $conn->prepare('INSERT INTO deletion_requests (target_id, target_id_number, target_username, target_name, target_email, target_role, target_status, requested_by, reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            $requestStmt->bind_param('issssssis', $targetId, $target['id_number'], $target['username'], $targetName, $target['email'], $target['role'], $target['status'], $actor['id'], $reason);
+            if (!$requestStmt->execute()) {
+                $requestStmt->close();
+                throw new RuntimeException('Could not save the deletion request.');
+            }
+            $requestStmt->close();
             if (!log_audit_action($conn, $actor, $target, 'delete_requested', $target['status'], $target['status'], null, null, $reason)) {
                 throw new RuntimeException('Could not write the deletion request.');
             }
@@ -85,7 +104,9 @@ try {
         $conn->commit();
         $_SESSION['success'] = 'Account deleted.';
     } elseif ($action === 'role_change') {
-        if (!can_manage_account($conn, $actor, $target, 'role_change') || !in_array($newRole, [ROLE_USER, ROLE_ADMIN, ROLE_SUPERADMIN], true)) {
+        $canAssignSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
+        $validRole = in_array($newRole, [ROLE_USER, ROLE_ADMIN, ROLE_SUPERADMIN], true);
+        if (!can_manage_account($conn, $actor, $target, 'role_change') || !$validRole || ($newRole === ROLE_SUPERADMIN && !$canAssignSuperadmin)) {
             log_audit_action($conn, $actor, $target, 'failed_authorization', $target['status'], $target['status'], null, null, 'Role change denied');
             throw new RuntimeException('You are not allowed to change this role.');
         }
