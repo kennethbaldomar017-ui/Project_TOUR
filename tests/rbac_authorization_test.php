@@ -20,8 +20,8 @@ assert_true(can_manage_account(null, $admin, $user, 'activate'), 'Admin should a
 assert_true(can_manage_account(null, $admin, $user, 'deactivate'), 'Admin should deactivate users.');
 assert_true(can_manage_account(null, $admin, $user, 'update_info'), 'Admin should update user information.');
 assert_true(can_manage_account(null, $admin, $user, 'delete'), 'Admin should delete users when policy permits.');
-assert_true(!can_manage_account(null, $admin, $otherAdmin, 'deactivate'), 'Admin must not deactivate admins.');
-assert_true(!can_manage_account(null, $admin, $otherAdmin, 'update_info'), 'Admin must not update admin information.');
+assert_true(can_manage_account(null, $admin, $otherAdmin, 'deactivate'), 'Admin with manage_users should deactivate admins.');
+assert_true(can_manage_account(null, $admin, $otherAdmin, 'update_info'), 'Admin with update_info should update admin information.');
 assert_true(!can_manage_account(null, $admin, $otherSuperadmin, 'delete'), 'Admin must not delete superadmins.');
 assert_true(!can_manage_account(null, $admin, $admin, 'deactivate'), 'Admin must not deactivate self.');
 assert_true(!can_manage_account(null, $admin, $pending, 'role_change'), 'Admin must not change roles without the manage_roles privilege.');
@@ -39,7 +39,7 @@ assert_true(can_create_role($superadmin, ROLE_SUPERADMIN), 'Superadmin should cr
 assert_true(deactivation_expiration('manual') === null, 'Manual deactivation should not expire.');
 assert_true(duration_label('1_month') === '1 month', 'Duration labels should be readable.');
 
-// The superadmin role always holds every privilege.
+// Legacy superadmins without a database privilege list hold every privilege.
 assert_true(user_has_privilege(null, $superadmin, PRIV_MANAGE_ADMINS), 'Superadmin should always hold manage_admins.');
 $adminPrivs = array_fill_keys([PRIV_APPROVE, PRIV_MANAGE_USERS], true);
 assert_true(isset($adminPrivs[PRIV_APPROVE]), 'Default admin privileges include approve.');

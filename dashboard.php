@@ -59,14 +59,14 @@ $totalAccounts = $stats['users'] + $stats['admins'] + $stats['superadmins'];
     <?php endif; ?>
 
     <main class="container dashboard-page <?= $isAdminDashboard ? 'admin-dashboard-content' : ''; ?>">
-        <div class="dashboard-intro">
-            <div>
-                <h2><?= $isAdminDashboard ? 'Dashboard' : 'Good to see you, ' . e($displayName) . '.'; ?></h2>
-                <?php if (!$isAdminDashboard): ?>
+        <?php if (!$isAdminDashboard): ?>
+            <div class="dashboard-intro">
+                <div>
+                    <h2>Good to see you, <?= e($displayName); ?>.</h2>
                     <p class="dashboard-summary">Manage computer parts inventory, supplier buying, and PC build jobs from one workspace.</p>
-                <?php endif; ?>
+                </div>
             </div>
-        </div>
+        <?php endif; ?>
 
         <?php if ($isAdminDashboard): ?>
             <section class="admin-profile-card">
@@ -150,7 +150,9 @@ $totalAccounts = $stats['users'] + $stats['admins'] + $stats['superadmins'];
                 <article class="admin-chart-card admin-quick-card">
                     <div class="admin-card-heading"><h3>Quick actions</h3><span>Manage</span></div>
                     <a href="admin_users.php"><span class="quick-icon">&#9673;</span><span><strong>Review users</strong><small>Accounts and approvals</small></span><b>&rarr;</b></a>
-                    <a href="audit_logs.php"><span class="quick-icon">&#9776;</span><span><strong>View activity</strong><small>Recent audit events</small></span><b>&rarr;</b></a>
+                    <?php if ($currentUser['role'] === 'superadmin'): ?>
+                        <a href="audit_logs.php"><span class="quick-icon">&#9776;</span><span><strong>View activity</strong><small>Recent audit events</small></span><b>&rarr;</b></a>
+                    <?php endif; ?>
                 </article>
             </section>
         <?php endif; ?>
@@ -162,11 +164,13 @@ $totalAccounts = $stats['users'] + $stats['admins'] + $stats['superadmins'];
                 <strong>Manage Users</strong>
                 <span>Review accounts, approvals, roles, and account status.</span>
             </a>
+            <?php if ($currentUser['role'] === 'superadmin'): ?>
             <a class="tech-action" href="audit_logs.php">
                 <strong>Audit Logs</strong>
                 <span>Review important account and system activity.</span>
             </a>
-            <?php if ($currentUser['role'] === 'superadmin'): ?>
+            <?php endif; ?>
+            <?php if ($currentUser['role'] === 'superadmin' || user_has_privilege($conn, $currentUser, PRIV_MANAGE_PRIVILEGES)): ?>
             <a class="tech-action" href="manage_privileges.php">
                 <strong>Privileges</strong>
                 <span>Manage permissions for administrative accounts.</span>

@@ -41,6 +41,10 @@ try {
         $conn->commit();
         $_SESSION['success'] = $target['status'] === STATUS_PENDING ? 'Registration approved. Account activated.' : 'Account activated.';
     } elseif ($action === 'deactivate') {
+        if (!account_ready_for_deactivation($target)) {
+            log_audit_action($conn, $actor, $target, 'failed_authorization', $target['status'], $target['status'], 'manual', null, 'Deactivation denied until password and required account details are completed');
+            throw new RuntimeException('This account must complete its new password, security questions, and personal details before it can be blocked.');
+        }
         if (!can_manage_account($conn, $actor, $target, 'deactivate')) {
             log_audit_action($conn, $actor, $target, 'failed_authorization', $target['status'], $target['status'], 'manual', null, 'Deactivation denied');
             throw new RuntimeException('You are not allowed to deactivate this account.');
@@ -106,7 +110,10 @@ try {
     } elseif ($action === 'role_change') {
         $canAssignSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
         $validRole = in_array($newRole, [ROLE_USER, ROLE_ADMIN, ROLE_SUPERADMIN], true);
-        if (!can_manage_account($conn, $actor, $target, 'role_change') || !$validRole || ($newRole === ROLE_SUPERADMIN && !$canAssignSuperadmin)) {
+        if ($actor['role'] !== ROLE_SUPERADMIN
+            || !can_manage_account($conn, $actor, $target, 'role_change')
+            || !$validRole
+            || ($newRole === ROLE_SUPERADMIN && !$canAssignSuperadmin)) {
             log_audit_action($conn, $actor, $target, 'failed_authorization', $target['status'], $target['status'], null, null, 'Role change denied');
             throw new RuntimeException('You are not allowed to change this role.');
         }

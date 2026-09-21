@@ -12,6 +12,33 @@ $where = [];
 $params = [];
 $types = '';
 
+$where[] = "must_change_password = 0
+    AND TRIM(id_number) <> ''
+    AND TRIM(username) <> ''
+    AND TRIM(first_name) <> ''
+    AND TRIM(last_name) <> ''
+    AND birthdate IS NOT NULL
+    AND age IS NOT NULL
+    AND TRIM(email) <> ''
+    AND TRIM(street) <> ''
+    AND TRIM(barangay) <> ''
+    AND TRIM(city) <> ''
+    AND TRIM(province) <> ''
+    AND TRIM(country) <> ''
+    AND TRIM(zip) <> ''
+    AND TRIM(auth_q1) <> ''
+    AND TRIM(auth_a1) <> ''
+    AND TRIM(auth_q2) <> ''
+    AND TRIM(auth_a2) <> ''
+    AND TRIM(auth_q3) <> ''
+    AND TRIM(auth_a3) <> ''";
+
+if ($actor['role'] !== ROLE_SUPERADMIN) {
+    $where[] = 'role <> ?';
+    $params[] = ROLE_SUPERADMIN;
+    $types .= 's';
+}
+
 if ($employeeId !== '') {
     $where[] = 'id_number LIKE ?';
     $params[] = '%' . $employeeId . '%';
@@ -40,12 +67,15 @@ $page = min($page, $totalPages);
 $offset = ($page - 1) * $perPage;
 
 $sql = "SELECT id, id_number, username, first_name, last_name, email, role, status,
+           must_change_password, birthdate, age, street, barangay, city, province, country, zip,
+           auth_q1, auth_a1, auth_q2, auth_a2, auth_q3, auth_a3,
            CASE WHEN status = 'active' AND last_seen_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE) THEN 1 ELSE 0 END AS is_online
     FROM users";
 if ($where) {
     $sql .= ' WHERE ' . implode(' AND ', $where);
 }
-$sql .= " ORDER BY FIELD(role, 'superadmin', 'admin', 'user'), username LIMIT ? OFFSET ?";
+$currentUserId = (int)$actor['id'];
+$sql .= " ORDER BY CASE WHEN id = {$currentUserId} THEN 0 ELSE 1 END, FIELD(role, 'superadmin', 'admin', 'user'), username LIMIT ? OFFSET ?";
 $params[] = $perPage;
 $params[] = $offset;
 $types .= 'ii';
@@ -69,7 +99,7 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Management | PRIME.</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=20260918">
 </head>
 <body>
     <?php include 'header.php'; ?>
@@ -99,7 +129,9 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                     <option value="">All roles</option>
                     <option value="user" <?= $roleFilter === ROLE_USER ? 'selected' : ''; ?>>User</option>
                     <option value="admin" <?= $roleFilter === ROLE_ADMIN ? 'selected' : ''; ?>>Admin</option>
-                    <option value="superadmin" <?= $roleFilter === ROLE_SUPERADMIN ? 'selected' : ''; ?>>Superadmin</option>
+                    <?php if ($isSuperadmin): ?>
+                        <option value="superadmin" <?= $roleFilter === ROLE_SUPERADMIN ? 'selected' : ''; ?>>Superadmin</option>
+                    <?php endif; ?>
                 </select>
                 <select name="status">
                     <option value="">All statuses</option>
@@ -116,9 +148,11 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                         <tr>
                             <th>Employee ID</th>
                             <th>User</th>
+                            <th>Username</th>
+                            <th>Email</th>
                             <th>Role</th>
                             <th>Status</th>
-                            <th>Account Controls</th>
+                            <th>Controls</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -126,19 +160,22 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                         <?php
                             $canActivate = can_manage_account($conn, $actor, $user, 'activate') && $user['status'] !== STATUS_ACTIVE;
                             $canDeactivate = can_manage_account($conn, $actor, $user, 'deactivate') && $user['status'] !== STATUS_DEACTIVATED;
+                            $deactivationBlockedBySetup = $user['status'] === STATUS_ACTIVE && !account_ready_for_deactivation($user);
                             $canDelete = can_manage_account($conn, $actor, $user, 'delete');
-                            $canRoleChange = can_manage_account($conn, $actor, $user, 'role_change');
+                            $canRoleChange = $isSuperadmin
+                                && can_manage_account($conn, $actor, $user, 'role_change');
                             $canUpdateInfo = can_manage_account($conn, $actor, $user, 'update_info');
-                            $canReset = $canResetPasswords && (
-                                $isSuperadmin || ($actor['role'] === ROLE_ADMIN && $user['role'] === ROLE_USER)
-                            ) && (int)$user['id'] !== (int)$actor['id'];
+                            $canReset = $canResetPasswords
+                                && ($isSuperadmin || ($actor['role'] === ROLE_ADMIN && $user['role'] !== ROLE_SUPERADMIN))
+                                && (int)$user['id'] !== (int)$actor['id'];
                         ?>
                         <tr>
                             <td><?= e($user['id_number']); ?></td>
                             <td>
-                                <strong><?= e($user['username']); ?></strong>
-                                <span><?= e(trim($user['first_name'] . ' ' . $user['last_name'])); ?> · <?= e($user['email']); ?></span>
+                                <span class="user-name"><?= e(trim($user['first_name'] . ' ' . $user['last_name'])); ?></span>
                             </td>
+                            <td><strong><?= e($user['username']); ?></strong></td>
+                            <td class="user-email-cell"><?= e($user['email']); ?></td>
                             <td><span class="badge role-<?= e($user['role']); ?>"><?= e(ucfirst($user['role'])); ?></span></td>
                             <?php
                                 if ($user['status'] === STATUS_DEACTIVATED) {
@@ -148,8 +185,8 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                                     $presenceLabel = ucfirst($user['status']);
                                     $presenceClass = $user['status'];
                                 } elseif ((int)$user['is_online'] === 1) {
-                                    $presenceLabel = 'Active';
-                                    $presenceClass = 'active';
+                                    $presenceLabel = 'Online';
+                                    $presenceClass = 'online';
                                 } else {
                                     $presenceLabel = 'Offline';
                                     $presenceClass = 'offline';
@@ -157,7 +194,38 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                             ?>
                             <td><span class="badge status-<?= e($presenceClass); ?>"><?= e($presenceLabel); ?></span></td>
                             <td>
+                                <details class="account-controls-dropdown">
+                                    <summary class="btn btn-primary" title="Controls" aria-label="Controls">&#8942;</summary>
                                 <div class="action-stack">
+                                    <?php if ($canRoleChange): ?>
+                                        <button type="button" class="role-change-trigger" data-role-modal-target="role-change-<?= (int)$user['id']; ?>">Change role</button>
+                                        <dialog id="role-change-<?= (int)$user['id']; ?>" class="role-change-modal">
+                                            <div class="role-change-modal-header">
+                                                <h3>Change role</h3>
+                                                <button type="button" class="role-change-close" data-role-modal-close aria-label="Close">&times;</button>
+                                            </div>
+                                            <p class="role-change-modal-help">Choose the access level for this account.</p>
+                                            <form method="post" action="admin_action.php" class="js-confirm"
+                                                  data-confirm-title="Change this account role?"
+                                                  data-confirm-message="The role determines what this account can access. Changes take effect immediately.">
+                                                <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
+                                                <input type="hidden" name="target_id" value="<?= (int)$user['id']; ?>">
+                                                <input type="hidden" name="action" value="role_change">
+                                                <label for="role-select-<?= (int)$user['id']; ?>">Role</label>
+                                                <select id="role-select-<?= (int)$user['id']; ?>" name="new_role" required aria-label="New role">
+                                                    <?php if ($user['role'] === ROLE_USER): ?>
+                                                        <option value="user" selected hidden>User</option>
+                                                    <?php endif; ?>
+                                                    <option value="admin" <?= $user['role'] === ROLE_ADMIN ? 'selected' : ''; ?>>Admin</option>
+                                                    <option value="superadmin" <?= $user['role'] === ROLE_SUPERADMIN ? 'selected' : ''; ?>>Superadmin</option>
+                                                </select>
+                                                <div class="role-change-modal-actions">
+                                                    <button type="button" class="role-change-cancel" data-role-modal-close>Cancel</button>
+                                                    <button type="submit" class="btn btn-primary" title="Save role" aria-label="Save role">Save role</button>
+                                                </div>
+                                            </form>
+                                        </dialog>
+                                    <?php endif; ?>
                                     <?php if ($canActivate): ?>
                                         <form method="post" action="admin_action.php" class="js-confirm"
                                               data-confirm-title="<?= $user['status'] === STATUS_PENDING ? 'Approve this registration?' : 'Activate this account?'; ?>"
@@ -165,62 +233,49 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
                                             <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
                                             <input type="hidden" name="target_id" value="<?= (int)$user['id']; ?>">
                                             <input type="hidden" name="action" value="activate">
-                                            <button type="submit" class="btn btn-primary icon-action" title="<?= $user['status'] === STATUS_PENDING ? 'Approve registration' : 'Activate'; ?>" aria-label="<?= $user['status'] === STATUS_PENDING ? 'Approve registration' : 'Activate'; ?>"><span aria-hidden="true">&#10003;</span></button>
-                                        </form>
-                                    <?php endif; ?>
-                                    <?php if ($canRoleChange): ?>
-                                        <form method="post" action="admin_action.php" class="js-confirm"
-                                              data-confirm-title="Change this account role?"
-                                              data-confirm-message="The role determines what this account can access. Changes take effect immediately.">
-                                            <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
-                                            <input type="hidden" name="target_id" value="<?= (int)$user['id']; ?>">
-                                            <input type="hidden" name="action" value="role_change">
-                                            <select name="new_role" required aria-label="New role">
-                                                <option value="user" <?= $user['role'] === ROLE_USER ? 'selected' : ''; ?>>User</option>
-                                                <option value="admin" <?= $user['role'] === ROLE_ADMIN ? 'selected' : ''; ?>>Admin</option>
-                                                <option value="superadmin" <?= $user['role'] === ROLE_SUPERADMIN ? 'selected' : ''; ?>>Superadmin</option>
-                                            </select>
-                                            <button type="submit" class="btn btn-primary icon-action" title="Change role" aria-label="Change role"><span aria-hidden="true">&#8644;</span></button>
+                                            <button type="submit" class="btn btn-primary" title="<?= $user['status'] === STATUS_PENDING ? 'Approve registration' : 'Activate'; ?>" aria-label="<?= $user['status'] === STATUS_PENDING ? 'Approve registration' : 'Activate'; ?>"><?= $user['status'] === STATUS_PENDING ? 'Approve registration' : 'Activate'; ?></button>
                                         </form>
                                     <?php endif; ?>
                                     <?php if ($canUpdateInfo): ?>
-                                        <a class="btn btn-ghost action-link icon-action" href="account_info.php?id=<?= (int)$user['id']; ?>" title="Edit information" aria-label="Edit information"><span aria-hidden="true">&#9998;</span></a>
+                                        <a class="btn btn-ghost action-link" href="account_info.php?id=<?= (int)$user['id']; ?>" title="Edit information" aria-label="Edit information">Edit information</a>
                                     <?php endif; ?>
                                     <?php if ($canDeactivate && $user['status'] !== STATUS_PENDING): ?>
                                         <form method="post" action="admin_action.php" class="js-confirm"
-                                              data-confirm-title="Deactivate this account?"
-                                              data-confirm-message="The account will remain deactivated until an administrator activates it.">
+                                              data-confirm-title="Block this account?"
+                                              data-confirm-message="The account will remain blocked until an administrator activates it.">
                                             <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
                                             <input type="hidden" name="target_id" value="<?= (int)$user['id']; ?>">
                                             <input type="hidden" name="action" value="deactivate">
-                                            <button type="submit" class="btn btn-primary icon-action" title="Deactivate" aria-label="Deactivate"><span aria-hidden="true">&#8856;</span></button>
+                                            <button type="submit" class="btn btn-primary" title="Block" aria-label="Block">Block</button>
                                         </form>
+                                    <?php endif; ?>
+                                    <?php if ($deactivationBlockedBySetup): ?>
+                                        <span class="muted-text">Complete password, security questions, and personal details before blocking</span>
                                     <?php endif; ?>
                                     <?php if ($canDelete): ?>
                                         <form method="post" action="admin_action.php" class="js-confirm"
                                               data-confirm-title="<?= $isSuperadmin ? 'Delete this account?' : 'Request account deletion?'; ?>"
-                                              data-confirm-message="<?= $isSuperadmin ? 'This permanently removes the account and all its data. This cannot be undone.' : 'A deletion request will be sent to the superadmin for review.'; ?>">
+                                                data-confirm-message="<?= $isSuperadmin ? 'This permanently removes the account and all its data. This cannot be undone.' : 'A deletion request will be sent to the superadmin for review.'; ?>"
+                                                <?= !$isSuperadmin ? 'data-confirm-requires-reason="true"' : ''; ?>>
                                             <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
                                             <input type="hidden" name="target_id" value="<?= (int)$user['id']; ?>">
                                             <input type="hidden" name="action" value="delete">
-                                                                                        <?php if (!$isSuperadmin): ?>
-                                                                                                <input type="text" name="reason" placeholder="Deletion reason" maxlength="255" required data-confirm-required aria-label="Deletion reason">
-                                                                                        <?php endif; ?>
-                                            <button class="btn btn-danger icon-action" type="submit" title="<?= $isSuperadmin ? 'Delete' : 'Request deletion'; ?>" aria-label="<?= $isSuperadmin ? 'Delete' : 'Request deletion'; ?>"><span aria-hidden="true">&#128465;</span></button>
+                                            <button class="btn btn-danger" type="submit" title="<?= $isSuperadmin ? 'Delete' : 'Request deletion'; ?>" aria-label="<?= $isSuperadmin ? 'Delete' : 'Request deletion'; ?>"><?= $isSuperadmin ? 'Delete' : 'Request deletion'; ?></button>
                                         </form>
                                     <?php endif; ?>
                                     <?php if ($canReset): ?>
-                                        <a class="btn btn-ghost action-link icon-action" href="reset_password.php?id=<?= (int)$user['id']; ?>" title="Reset password" aria-label="Reset password"><span aria-hidden="true">&#128273;</span></a>
+                                        <a class="btn btn-ghost action-link" href="reset_password.php?id=<?= (int)$user['id']; ?>" title="Reset password" aria-label="Reset password">Reset password</a>
                                     <?php endif; ?>
                                     <?php if (!$canActivate && !$canDeactivate && !$canDelete && !$canRoleChange && !$canUpdateInfo && !$canReset): ?>
                                         <span class="muted-text">No permitted actions for your role</span>
                                     <?php endif; ?>
                                 </div>
+                                </details>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if (!$users): ?>
-                        <tr><td class="empty-state" colspan="5"><strong>No accounts found</strong><span>Try changing the Employee ID or filters.</span></td></tr>
+                        <tr><td class="empty-state" colspan="7"><strong>No accounts found</strong><span>Try changing the Employee ID or filters.</span></td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>
@@ -237,6 +292,127 @@ $isSuperadmin = $actor['role'] === ROLE_SUPERADMIN;
 
     <?php include 'footer.php'; ?>
     <?php include 'confirm_modal.php'; ?>
+    <script>
+    function positionAccountMenu(menu) {
+        if (!menu.open) {
+            return;
+        }
+        var panel = menu._floatingPanel || menu.querySelector('.action-stack');
+        var trigger = menu.querySelector('summary');
+        if (!panel || !trigger) {
+            return;
+        }
+        menu.classList.remove('menu-above');
+        panel.style.position = 'fixed';
+        panel.style.top = '0px';
+        panel.style.left = '0px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+        var triggerRect = trigger.getBoundingClientRect();
+        var panelRect = panel.getBoundingClientRect();
+        var viewportMargin = 8;
+        var gap = 6;
+        var left = Math.min(
+            Math.max(viewportMargin, triggerRect.right - panelRect.width),
+            window.innerWidth - panelRect.width - viewportMargin
+        );
+        var top = triggerRect.bottom + gap;
+        if (top + panelRect.height > window.innerHeight - viewportMargin) {
+            top = triggerRect.top - panelRect.height - gap;
+        }
+        top = Math.max(viewportMargin, Math.min(top, window.innerHeight - panelRect.height - viewportMargin));
+        panel.style.left = left + 'px';
+        panel.style.top = top + 'px';
+    }
+
+    document.querySelectorAll('.account-controls-dropdown').forEach(function (menu) {
+        menu.addEventListener('toggle', function () {
+            if (!menu.open) {
+                if (menu._floatingPanel) {
+                    menu.appendChild(menu._floatingPanel);
+                    menu._floatingPanel = null;
+                }
+                if (menu._floatingHost) {
+                    menu._floatingHost.remove();
+                    menu._floatingHost = null;
+                }
+                var closedPanel = menu.querySelector('.action-stack');
+                if (closedPanel) {
+                    closedPanel.style.position = '';
+                    closedPanel.style.top = '';
+                    closedPanel.style.left = '';
+                    closedPanel.style.right = '';
+                    closedPanel.style.bottom = '';
+                }
+                return;
+            }
+            document.querySelectorAll('details.account-controls-dropdown[open]').forEach(function (otherMenu) {
+                if (otherMenu !== menu) {
+                    otherMenu.removeAttribute('open');
+                }
+            });
+            var panel = menu.querySelector('.action-stack');
+            var host = document.createElement('div');
+            var floatingMenu = document.createElement('div');
+            host.className = 'users-page account-menu-portal';
+            floatingMenu.className = 'account-controls-dropdown';
+            floatingMenu.setAttribute('open', '');
+            floatingMenu.appendChild(panel);
+            host.appendChild(floatingMenu);
+            (document.querySelector('.admin-layout') || document.body).appendChild(host);
+            menu._floatingPanel = panel;
+            menu._floatingHost = host;
+            requestAnimationFrame(function () {
+                positionAccountMenu(menu);
+            });
+        });
+    });
+
+    document.querySelectorAll('[data-role-modal-target]').forEach(function (trigger) {
+        trigger.addEventListener('click', function () {
+            var modal = document.getElementById(trigger.getAttribute('data-role-modal-target'));
+            if (modal && typeof modal.showModal === 'function') {
+                modal.showModal();
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-role-modal-close]').forEach(function (closeButton) {
+        closeButton.addEventListener('click', function () {
+            var modal = closeButton.closest('dialog');
+            if (modal) {
+                modal.close();
+            }
+        });
+    });
+
+    document.querySelectorAll('.role-change-modal').forEach(function (modal) {
+        modal.addEventListener('close', function () {
+            var parentMenu = modal.closest('.account-controls-dropdown');
+            if (parentMenu) {
+                parentMenu.removeAttribute('open');
+            }
+        });
+
+        modal.addEventListener('click', function (event) {
+            if (event.target === modal) {
+                modal.close();
+            }
+        });
+    });
+
+    window.addEventListener('resize', function () {
+        document.querySelectorAll('details.account-controls-dropdown[open]').forEach(positionAccountMenu);
+    });
+
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('.account-controls-dropdown')) {
+            document.querySelectorAll('details.account-controls-dropdown[open]').forEach(function (menu) {
+                menu.removeAttribute('open');
+            });
+        }
+    });
+    </script>
     <script src="js/admin.js"></script>
 </body>
 </html>

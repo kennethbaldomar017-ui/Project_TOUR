@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+require_once 'auth.php';
 
 $pending = $_SESSION['pending_login'] ?? null;
 if (!is_array($pending) || empty($pending['user_id']) || empty($pending['started_at'])) {
@@ -49,6 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $usedStmt->bind_param('i', $token['id']);
             $usedStmt->execute();
             $usedStmt->close();
+
+            issue_trusted_device($conn, (int)$user['id']);
 
             session_regenerate_id(true);
             $_SESSION['user_id'] = (int)$user['id'];
@@ -100,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <script src="js/confirm.js" defer></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify Login | PRIME.</title>
     <link rel="stylesheet" href="css/style.css">
@@ -116,7 +120,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="post" action="login_otp.php">
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()); ?>">
             <label for="otp">Verification code <span class="req">*</span></label>
-            <input id="otp" type="password" name="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required autofocus>
+            <div class="password-wrapper">
+                <input id="otp" type="password" name="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required autofocus>
+                <span class="toggle-pwd-icon" aria-label="Show password">&#128065;</span>
+            </div>
             <div class="otp-actions">
                 <div class="auth-links"><a class="muted-link" href="logout.php">Cancel and return to login</a></div>
                 <button type="submit" class="btn btn-primary btn-block">Verify and continue</button>

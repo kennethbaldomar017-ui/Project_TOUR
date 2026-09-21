@@ -14,23 +14,30 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit('Invalid request method');
 }
 
-$targetId = max(1, (int)($_POST['target_id'] ?? 0));
+$targetId = (int)($_POST['target_id'] ?? 0);
+if ($targetId <= 0) {
+    $_SESSION['form_error'] = 'Select an administrator account before saving privileges.';
+    header('Location: manage_privileges.php');
+    exit;
+}
+
 $target = get_user_by_id($conn, $targetId);
 
-if (!$target || $target['role'] !== ROLE_ADMIN) {
+if (!$target || !in_array($target['role'], [ROLE_ADMIN, ROLE_SUPERADMIN], true) || ($target['role'] === ROLE_SUPERADMIN && $actor['role'] !== ROLE_SUPERADMIN)) {
     $_SESSION['form_error'] = 'Privileges can only be managed for administrator accounts.';
-    header('Location: admin_users.php');
+    header('Location: manage_privileges.php');
     exit;
 }
 
 $previous = get_user_privileges($conn, (int)$target['id']);
 $selected = (array)($_POST['privileges'] ?? []);
-$selected = array_values(array_intersect($selected, array_keys(PRIVILEGE_LABELS)));
+$assignablePrivileges = PRIVILEGE_LABELS;
+$selected = array_values(array_intersect($selected, array_keys($assignablePrivileges)));
 sort($selected);
 
 try {
     $conn->begin_transaction();
-    set_user_privileges($conn, (int)$target['id'], $selected, $actor, 'Privilege update');
+    set_user_privileges($conn, (int)$target['id'], $selected, $actor, 'Privilege update', $target['role'] === ROLE_SUPERADMIN);
 
     $removed = array_diff($previous, $selected);
     $added = array_diff($selected, $previous);
@@ -51,7 +58,7 @@ try {
     $conn->commit();
 
     $_SESSION['success'] = 'Privileges updated for ' . $target['username'] . '.';
-    header('Location: admin_users.php');
+    header('Location: manage_privileges.php');
     exit;
 } catch (Throwable $e) {
     @$conn->rollback();

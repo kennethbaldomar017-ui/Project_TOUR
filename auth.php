@@ -9,6 +9,8 @@ const STATUS_ACTIVE = 'active';
 const STATUS_PENDING = 'pending';
 const STATUS_DEACTIVATED = 'deactivated';
 const SESSION_IDLE_TIMEOUT = 1800;
+const TRUSTED_DEVICE_COOKIE = 'prime_trusted_device';
+const TRUSTED_DEVICE_LIFETIME = 31536000;
 
 // System privileges granted by a superadmin to administrators.
 // The superadmin role implicitly holds every privilege.
@@ -21,15 +23,14 @@ const PRIV_RESET_PASSWORDS = 'reset_passwords';
 const PRIV_VIEW_AUDIT_LOGS = 'view_audit_logs';
 const PRIV_MANAGE_PRIVILEGES = 'manage_privileges';
 const PRIV_UPDATE_INFO = 'update_info';
+const PRIV_SUPERADMIN_CONFIGURED = '__superadmin_configured__';
 
 const PRIVILEGE_LABELS = [
     PRIV_APPROVE => 'Approve registrations',
     PRIV_MANAGE_USERS => 'Manage users (activate / deactivate)',
     PRIV_DELETE_USERS => 'Delete user accounts',
     PRIV_MANAGE_ROLES => 'Change user roles',
-    PRIV_MANAGE_ADMINS => 'Manage administrator accounts',
     PRIV_RESET_PASSWORDS => 'Reset account passwords',
-    PRIV_VIEW_AUDIT_LOGS => 'View audit logs',
     PRIV_MANAGE_PRIVILEGES => 'Manage administrator privileges',
     PRIV_UPDATE_INFO => 'Update account information',
 ];
@@ -40,7 +41,6 @@ const DEFAULT_ADMIN_PRIVILEGES = [
     PRIV_MANAGE_USERS,
     PRIV_DELETE_USERS,
     PRIV_UPDATE_INFO,
-    PRIV_VIEW_AUDIT_LOGS,
 ];
 
 function e($value) {
@@ -54,11 +54,13 @@ function send_account_credentials_email(array $account, string $temporaryPasswor
     }
 
     $firstName = trim((string)($account['first_name'] ?? ''));
+    $username = trim((string)($account['username'] ?? ''));
     $greeting = $firstName !== '' ? 'Hello ' . $firstName . ',' : 'Hello,';
     $message = $greeting . "\n\n"
         . "Your PRIME. account has been created successfully.\n\n"
-        . "Your username and temporary password were provided through a secure, private channel and were not included in this email for security reasons.\n\n"
-        . "Please sign in using the credentials issued to you privately and change the temporary password immediately after your first login.\n\n"
+        . "Username: {$username}\n"
+        . "Temporary password: {$temporaryPassword}\n\n"
+        . "Please sign in using these credentials and change the temporary password immediately after your first login.\n\n"
         . "If you did not expect this email, contact your administrator.\n";
     $headers = "From: PRIME. <primetechcompany@gmail.com>\r\n"
         . "Reply-To: primetechcompany@gmail.com\r\n"
@@ -169,6 +171,20 @@ function ensure_rbac_schema(mysqli $conn): void {
         PRIMARY KEY (id),
         KEY idx_otp_user (user_id),
         KEY idx_otp_expiry (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS trusted_devices (
+        id INT(11) NOT NULL AUTO_INCREMENT,
+        user_id INT(11) NOT NULL,
+        selector CHAR(32) NOT NULL,
+        token_hash VARCHAR(255) NOT NULL,
+        expires_at DATETIME NOT NULL,
+        last_used_at DATETIME DEFAULT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_trusted_selector (selector),
+        KEY idx_trusted_user (user_id),
+        KEY idx_trusted_expiry (expires_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
     $conn->query("CREATE TABLE IF NOT EXISTS deletion_requests (
@@ -343,21 +359,14 @@ function can_manage_account(?mysqli $conn, array $actor, array $target, string $
         return true;
     }
 
-    if ($actor['role'] === ROLE_SUPERADMIN) {
-        return true;
-    }
-
-    if ($actor['role'] !== ROLE_ADMIN) {
+    if (!in_array($action, ['activate', 'deactivate', 'delete', 'role_change', 'update_info'], true)) {
         return false;
     }
 
-    // Administrators can only manage regular user accounts.
-    if ($target['role'] !== ROLE_USER) {
+    if ($action === 'deactivate' && $conn !== null && !account_ready_for_deactivation($target)) {
         return false;
     }
 
-    // Privilege-gated actions for administrators. When no DB connection is
-    // available (e.g. unit tests), fall back to the default admin privileges.
     $privilegeForAction = [
         'activate'    => $target['status'] === STATUS_PENDING ? PRIV_APPROVE : PRIV_MANAGE_USERS,
         'deactivate'  => PRIV_MANAGE_USERS,
@@ -365,6 +374,17 @@ function can_manage_account(?mysqli $conn, array $actor, array $target, string $
         'role_change' => PRIV_MANAGE_ROLES,
         'update_info' => PRIV_UPDATE_INFO,
     ];
+
+    if ($actor['role'] === ROLE_SUPERADMIN) {
+        return user_has_privilege($conn, $actor, $privilegeForAction[$action]);
+    }
+
+    if ($actor['role'] !== ROLE_ADMIN || $target['role'] === ROLE_SUPERADMIN) {
+        return false;
+    }
+
+    // Privilege-gated actions for administrators. When no DB connection is
+    // available (e.g. unit tests), fall back to the default admin privileges.
     $allowedPrivileges = $conn !== null ? get_user_privileges($conn, (int)$actor['id']) : DEFAULT_ADMIN_PRIVILEGES;
     if (isset($privilegeForAction[$action]) && !in_array($privilegeForAction[$action], $allowedPrivileges, true)) {
         return false;
@@ -387,7 +407,7 @@ function can_create_role(array $actor, string $role): bool {
 }
 
 function get_user_by_id(mysqli $conn, int $id): ?array {
-    $stmt = $conn->prepare("SELECT id, id_number, username, first_name, middle_name, last_name, extension, birthdate, age, street, barangay, city, province, country, zip, email, role, status, deactivation_duration, deactivated_until, status_reason FROM users WHERE id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT id, id_number, username, first_name, middle_name, last_name, extension, birthdate, age, street, barangay, city, province, country, zip, email, role, status, deactivation_duration, deactivated_until, status_reason, must_change_password, auth_q1, auth_a1, auth_q2, auth_a2, auth_q3, auth_a3 FROM users WHERE id = ? LIMIT 1");
     if (!$stmt) {
         return null;
     }
@@ -396,6 +416,29 @@ function get_user_by_id(mysqli $conn, int $id): ?array {
     $user = $stmt->get_result()->fetch_assoc();
     $stmt->close();
     return $user ?: null;
+}
+
+function account_details_complete(array $account): bool {
+    foreach (['id_number', 'username', 'first_name', 'last_name', 'birthdate', 'age', 'email', 'street', 'barangay', 'city', 'province', 'country', 'zip'] as $field) {
+        if (trim((string)($account[$field] ?? '')) === '') {
+            return false;
+        }
+    }
+    return true;
+}
+
+function account_ready_for_deactivation(array $account): bool {
+    if ((int)($account['must_change_password'] ?? 0) !== 0 || !account_details_complete($account)) {
+        return false;
+    }
+
+    foreach (['auth_q1', 'auth_a1', 'auth_q2', 'auth_a2', 'auth_q3', 'auth_a3'] as $field) {
+        if (trim((string)($account[$field] ?? '')) === '') {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 function deactivation_expiration(?string $duration): ?string {
@@ -455,14 +498,25 @@ function acquire_superadmin_lock(mysqli $conn, int $userId, string $sessionId): 
     return true;
 }
 
+function superadmin_lock_available(mysqli $conn, int $userId): ?bool {
+    $stmt = $conn->prepare("SELECT active_user_id FROM superadmin_lock WHERE lock_name = 'superadmin' LIMIT 1");
+    if (!$stmt) {
+        return null;
+    }
+    $stmt->execute();
+    $activeUserId = $stmt->get_result()->fetch_assoc()['active_user_id'] ?? null;
+    $stmt->close();
+    return $activeUserId === null || (int)$activeUserId === $userId;
+}
+
 function release_superadmin_lock(mysqli $conn, int $userId, string $sessionId): void {
     $stmt = $conn->prepare("UPDATE superadmin_lock
         SET active_user_id = NULL, session_id = NULL
-        WHERE lock_name = 'superadmin' AND active_user_id = ? AND session_id = ?");
+        WHERE lock_name = 'superadmin' AND active_user_id = ?");
     if (!$stmt) {
         return;
     }
-    $stmt->bind_param('is', $userId, $sessionId);
+    $stmt->bind_param('i', $userId);
     $stmt->execute();
     $stmt->close();
 }
@@ -553,7 +607,14 @@ function get_user_privileges(mysqli $conn, int $userId): array {
 
 function user_has_privilege(?mysqli $conn, array $user, string $privilege): bool {
     if (($user['role'] ?? '') === ROLE_SUPERADMIN) {
-        return true;
+        if ($conn === null) {
+            return true;
+        }
+        $privileges = get_user_privileges($conn, (int)$user['id']);
+        if (!in_array(PRIV_SUPERADMIN_CONFIGURED, $privileges, true)) {
+            return true;
+        }
+        return in_array($privilege, $privileges, true);
     }
     if (($user['role'] ?? '') !== ROLE_ADMIN) {
         return false;
@@ -575,8 +636,11 @@ function require_privilege(mysqli $conn, array $user, string $privilege): array 
     return $user;
 }
 
-function set_user_privileges(mysqli $conn, int $userId, array $privileges, ?array $grantedBy = null, ?string $reason = null): void {
+function set_user_privileges(mysqli $conn, int $userId, array $privileges, ?array $grantedBy = null, ?string $reason = null, bool $configureSuperadmin = false): void {
     $valid = array_intersect($privileges, array_keys(PRIVILEGE_LABELS));
+    if ($configureSuperadmin) {
+        $valid[] = PRIV_SUPERADMIN_CONFIGURED;
+    }
     $grantedById = $grantedBy['id'] ?? null;
     $del = $conn->prepare('DELETE FROM user_privileges WHERE user_id = ?');
     $del->bind_param('i', $userId);
@@ -610,6 +674,61 @@ function verify_actor_password(mysqli $conn, array $actor, string $submitted): b
     $hash = $stmt->get_result()->fetch_assoc()['password'] ?? '';
     $stmt->close();
     return $hash !== '' && password_verify($submitted, $hash);
+}
+
+function trusted_device_user(mysqli $conn): ?array {
+    $cookie = $_COOKIE[TRUSTED_DEVICE_COOKIE] ?? '';
+    $parts = explode('.', $cookie, 2);
+    if (count($parts) !== 2 || !ctype_xdigit($parts[0]) || strlen($parts[0]) !== 32 || $parts[1] === '') {
+        return null;
+    }
+
+    $stmt = $conn->prepare('SELECT users.*, trusted_devices.id AS trusted_device_id, trusted_devices.token_hash FROM trusted_devices JOIN users ON users.id = trusted_devices.user_id WHERE trusted_devices.selector = ? AND trusted_devices.expires_at > NOW() LIMIT 1');
+    if (!$stmt) {
+        return null;
+    }
+    $stmt->bind_param('s', $parts[0]);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$user || $user['status'] !== STATUS_ACTIVE || !password_verify($parts[1], $user['token_hash'])) {
+        return null;
+    }
+
+    $update = $conn->prepare('UPDATE trusted_devices SET last_used_at = NOW() WHERE id = ?');
+    if ($update) {
+        $update->bind_param('i', $user['trusted_device_id']);
+        $update->execute();
+        $update->close();
+    }
+    return $user;
+}
+
+function issue_trusted_device(mysqli $conn, int $userId): bool {
+    $selector = bin2hex(random_bytes(16));
+    $token = bin2hex(random_bytes(32));
+    $tokenHash = password_hash($token, PASSWORD_DEFAULT);
+    $stmt = $conn->prepare("INSERT INTO trusted_devices (user_id, selector, token_hash, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR))");
+    if (!$stmt) {
+        return false;
+    }
+    $stmt->bind_param('iss', $userId, $selector, $tokenHash);
+    $created = $stmt->execute();
+    $stmt->close();
+    if (!$created) {
+        return false;
+    }
+
+    $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    setcookie(TRUSTED_DEVICE_COOKIE, $selector . '.' . $token, [
+        'expires' => time() + TRUSTED_DEVICE_LIFETIME,
+        'path' => '/',
+        'secure' => $secure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    return true;
 }
 
 // Verify the session user's own password (typed-confirmation).

@@ -94,37 +94,6 @@ foreach ($parts as $part) {
                 <div><span>Cost value</span><strong><?= e(peso($inventoryValue)); ?></strong><small>current stock at unit cost</small></div>
             </div>
 
-            <div class="inventory-modal-backdrop" id="partModal" hidden>
-                <div class="inventory-modal" role="dialog" aria-modal="true" aria-labelledby="partModalTitle">
-                    <div class="modal-header"><h3 id="partModalTitle">Add computer part</h3><button class="modal-close" type="button" id="closePartModal" aria-label="Close">&times;</button></div>
-                    <form class="tech-form-grid" action="inventory_action.php" method="post">
-                <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
-                <input type="hidden" name="action" value="create_part">
-                <label>SKU<span class="req"> *</span><input type="text" name="sku" placeholder="CPU-R5-5600" required></label>
-                <label>Part Name<span class="req"> *</span><input type="text" name="name" placeholder="Ryzen 5 5600" required></label>
-                <label>Category<span class="req"> *</span>
-                    <select name="category" required>
-                        <?php foreach (PART_CATEGORIES as $category): ?>
-                            <option value="<?= e($category); ?>"><?= e($category); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
-                <label>Brand<input type="text" name="brand" placeholder="AMD"></label>
-                <label>Model<input type="text" name="model" placeholder="100-100000927BOX"></label>
-                <label>Socket<input type="text" name="socket" placeholder="AM4, LGA1700"></label>
-                <label>Form Factor<input type="text" name="form_factor" placeholder="ATX, mATX, M.2"></label>
-                <label>Wattage<input type="number" name="wattage" min="0" placeholder="65"></label>
-                <label>Initial Stock<input type="number" name="stock" min="0" value="0"></label>
-                <label>Reorder Level<input type="number" name="reorder_level" min="0" value="3"></label>
-                <label>Unit Cost<input type="number" name="unit_cost" min="0" step="0.01" value="0.00"></label>
-                <label>Sale Price<input type="number" name="sale_price" min="0" step="0.01" value="0.00"></label>
-                <label>Supplier<input type="text" name="supplier" placeholder="Main supplier"></label>
-                <label class="span-2">Notes<textarea name="notes" rows="2" placeholder="Compatibility, warranty, or bundle notes"></textarea></label>
-                        <button class="btn btn-primary span-2" type="submit">Add Part</button>
-                    </form>
-                </div>
-            </div>
-
             <form class="filter-bar tech-filter" method="get">
                 <span class="filter-label">Find a part</span>
                 <input type="search" name="search" value="<?= e($search); ?>" placeholder="Search SKU, part, brand, model, supplier">
@@ -191,6 +160,40 @@ foreach ($parts as $part) {
             </div>
         </section>
     </main>
+
+    <div class="inventory-modal-backdrop" id="partModal" hidden>
+        <div class="inventory-modal" role="dialog" aria-modal="true" aria-labelledby="partModalTitle">
+            <div class="modal-header">
+                <h3 id="partModalTitle">Add computer part</h3>
+                <button class="modal-close" type="button" id="closePartModal" aria-label="Close">&times;</button>
+            </div>
+            <form class="tech-form-grid" action="inventory_action.php" method="post">
+                <input type="hidden" name="csrf_token" value="<?= e($token); ?>">
+                <input type="hidden" name="action" value="create_part">
+                <label>SKU<span class="req"> *</span><input type="text" name="sku" placeholder="CPU-R5-5600" required></label>
+                <label>Part Name<span class="req"> *</span><input type="text" name="name" placeholder="Ryzen 5 5600" required></label>
+                <label>Category<span class="req"> *</span>
+                    <select name="category" required>
+                        <?php foreach (PART_CATEGORIES as $category): ?>
+                            <option value="<?= e($category); ?>"><?= e($category); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <label>Brand<input type="text" name="brand" placeholder="AMD"></label>
+                <label>Model<input type="text" name="model" placeholder="100-100000927BOX"></label>
+                <label>Socket<input type="text" name="socket" placeholder="AM4, LGA1700"></label>
+                <label>Form Factor<input type="text" name="form_factor" placeholder="ATX, mATX, M.2"></label>
+                <label>Wattage<input type="number" name="wattage" min="0" placeholder="65"></label>
+                <label>Initial Stock<input type="number" name="stock" min="0" value="0"></label>
+                <label>Reorder Level<input type="number" name="reorder_level" min="0" value="3"></label>
+                <label>Unit Cost<input type="number" name="unit_cost" min="0" step="0.01" value="0.00"></label>
+                <label>Sale Price<input type="number" name="sale_price" min="0" step="0.01" value="0.00"></label>
+                <label>Supplier<input type="text" name="supplier" placeholder="Main supplier"></label>
+                <label class="span-2">Notes<textarea name="notes" rows="1" placeholder="Compatibility, warranty, or bundle notes"></textarea></label>
+                <button class="btn btn-primary span-3" type="submit">Add Part</button>
+            </form>
+        </div>
+    </div>
 
     <?php include 'footer.php'; ?>
     <script>

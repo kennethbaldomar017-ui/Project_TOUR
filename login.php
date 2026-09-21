@@ -27,7 +27,7 @@ if (isset($_SESSION['failed_logins'])) {
 <head>
     <meta charset="utf-8">
     <title>Login | PRIME.</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=20260916">
     <script src="js/validation.js" defer></script>
     <script src="js/confirm.js" defer></script>
 </head>
@@ -60,11 +60,6 @@ if (isset($_SESSION['failed_logins'])) {
                     <input type="password" name="password" id="login_password" required placeholder="Enter your password" autocomplete="current-password" <?php if ($lockout_remaining > 0) echo 'disabled'; ?>>
                     <span class="toggle-pwd-icon">👁️</span>
                 </div>
-            </div>
-
-            <div class="remember-me-wrapper">
-                <input type="checkbox" name="remember_me" id="remember_me" <?php if ($lockout_remaining > 0) echo 'disabled'; ?>>
-                <label for="remember_me" class="remember-me-label">Remember me</label>
             </div>
 
             <button type="submit" id="loginBtn" class="btn btn-primary btn-block" <?php if ($lockout_remaining > 0) echo 'disabled'; ?>>Log in</button>
@@ -155,13 +150,11 @@ function enableHeaderRegisterButton() {
     const forgotPasswordDiv = document.getElementById('forgotPasswordDiv');
     const identifierInput = document.getElementById('login_identifier');
     const passwordInput = document.getElementById('login_password');
-    const rememberMeCheckbox = document.getElementById('remember_me');
 
     // Disable all interactive elements
     loginBtn.disabled = true;
     identifierInput.disabled = true;
     passwordInput.disabled = true;
-    rememberMeCheckbox.disabled = true;
     registerLink.style.pointerEvents = 'none';
     registerLink.style.opacity = '0.5';
     registerLink.style.cursor = 'not-allowed';
@@ -176,7 +169,6 @@ function enableHeaderRegisterButton() {
             loginBtn.disabled = false;
             identifierInput.disabled = false;
             passwordInput.disabled = false;
-            rememberMeCheckbox.disabled = false;
             registerLink.style.pointerEvents = 'auto';
             registerLink.style.opacity = '1';
             registerLink.style.cursor = 'pointer';

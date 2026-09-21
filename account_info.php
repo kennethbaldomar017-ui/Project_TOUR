@@ -18,7 +18,7 @@ $token = csrf_token();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Account Information | PRIME.</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=20260916">
 </head>
 <body>
     <?php include 'header.php'; ?>
@@ -69,7 +69,7 @@ $token = csrf_token();
                         </div>
                         <div>
                             <label for="age">Age</label>
-                            <input id="age" type="text" name="age" value="<?= e($target['age'] ?? ''); ?>" maxlength="3">
+                            <input id="age" type="text" name="age" value="<?= e($target['age'] ?? ''); ?>" maxlength="3" readonly>
                         </div>
                         <div class="span-2">
                             <label for="email">Email <span class="req">*</span></label>
@@ -112,5 +112,30 @@ $token = csrf_token();
 
     <?php include 'footer.php'; ?>
     <?php include 'confirm_modal.php'; ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const birthdate = document.getElementById('birthdate');
+            const age = document.getElementById('age');
+            if (!birthdate || !age) return;
+
+            function syncAge() {
+                if (!birthdate.value) {
+                    age.value = '';
+                    return;
+                }
+
+                const birthDate = new Date(birthdate.value + 'T00:00:00');
+                const today = new Date();
+                let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+                const birthdayPassed = today.getMonth() > birthDate.getMonth()
+                    || (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+                if (!birthdayPassed) calculatedAge--;
+                age.value = calculatedAge >= 0 ? calculatedAge : '';
+            }
+
+            birthdate.addEventListener('change', syncAge);
+            syncAge();
+        });
+    </script>
 </body>
 </html>

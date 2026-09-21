@@ -25,6 +25,11 @@ $lastName = trim((string)($_POST['last_name'] ?? ''));
 $extension = trim((string)($_POST['extension'] ?? ''));
 $birthdate = trim((string)($_POST['birthdate'] ?? ''));
 $age = trim((string)($_POST['age'] ?? ''));
+$birthDateObject = DateTime::createFromFormat('Y-m-d', $birthdate);
+if ($birthDateObject && $birthDateObject->format('Y-m-d') === $birthdate) {
+    $today = new DateTime('today');
+    $age = (string)$birthDateObject->diff($today)->y;
+}
 $email = trim((string)($_POST['email'] ?? ''));
 $street = trim((string)($_POST['street'] ?? ''));
 $barangay = trim((string)($_POST['barangay'] ?? ''));

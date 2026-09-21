@@ -1,6 +1,6 @@
 <?php
 require_once 'config.php';
-$actor = require_privilege($conn, require_login($conn), PRIV_VIEW_AUDIT_LOGS);
+$actor = require_superadmin($conn);
 $canViewAuditLogs = true;
 
 $search = trim($_GET['search'] ?? '');
@@ -59,7 +59,7 @@ if ($params) {
 $countStmt->execute();
 $totalLogs = (int)$countStmt->get_result()->fetch_assoc()['total'];
 $countStmt->close();
-$totalPages = min(20, max(1, (int)ceil($totalLogs / $perPage)));
+$totalPages = max(1, (int)ceil($totalLogs / $perPage));
 $page = min($page, $totalPages);
 $offset = ($page - 1) * $perPage;
 
@@ -178,10 +178,31 @@ if ($actionResult) {
                 </table>
             </div>
             <?php if ($totalPages > 1): ?>
+                <?php
+                    $pageWindowSize = 20;
+                    $pageWindowStart = (int)(floor(($page - 1) / $pageWindowSize) * $pageWindowSize) + 1;
+                    $pageWindowEnd = min($totalPages, $pageWindowStart + $pageWindowSize - 1);
+                    $previousPage = $page - 1;
+                    $nextPage = $page + 1;
+                ?>
                 <nav class="pagination" aria-label="Audit log pages">
-                    <?php for ($pageNumber = 1; $pageNumber <= $totalPages; $pageNumber++): ?>
+                    <?php if ($previousPage >= 1): ?>
+                        <a class="pagination-control" href="<?= e('?' . http_build_query(array_merge($_GET, ['page' => $previousPage]))); ?>" aria-label="Previous page">&larr;</a>
+                    <?php endif; ?>
+                    <?php if ($pageWindowStart > 1): ?>
+                        <a href="<?= e('?' . http_build_query(array_merge($_GET, ['page' => 1]))); ?>">1</a>
+                        <span aria-hidden="true">&hellip;</span>
+                    <?php endif; ?>
+                    <?php for ($pageNumber = $pageWindowStart; $pageNumber <= $pageWindowEnd; $pageNumber++): ?>
                         <a class="<?= $pageNumber === $page ? 'active' : ''; ?>" href="<?= e('?' . http_build_query(array_merge($_GET, ['page' => $pageNumber]))); ?>"><?= $pageNumber; ?></a>
                     <?php endfor; ?>
+                    <?php if ($pageWindowEnd < $totalPages): ?>
+                        <span aria-hidden="true">&hellip;</span>
+                        <a href="<?= e('?' . http_build_query(array_merge($_GET, ['page' => $totalPages]))); ?>"><?= $totalPages; ?></a>
+                    <?php endif; ?>
+                    <?php if ($nextPage <= $totalPages): ?>
+                        <a class="pagination-control" href="<?= e('?' . http_build_query(array_merge($_GET, ['page' => $nextPage]))); ?>" aria-label="Next page">&rarr;</a>
+                    <?php endif; ?>
                 </nav>
             <?php endif; ?>
         </section>

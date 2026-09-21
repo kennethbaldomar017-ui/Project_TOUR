@@ -186,20 +186,8 @@ document.addEventListener('DOMContentLoaded', function() {
         confirmPassword.addEventListener('input', checkPasswordMatch);
     }
     
-    // Toggle password visibility
-    document.querySelectorAll('.toggle-pwd').forEach(function(toggle) {
-        toggle.addEventListener('click', function() {
-            const target = document.querySelector(this.getAttribute('data-target'));
-            if (target.type === 'password') {
-                target.type = 'text';
-                this.textContent = 'Hide';
-            } else {
-                target.type = 'password';
-                this.textContent = 'Show';
-            }
-        });
-    });
 });
 </script>
+  <script src="js/confirm.js" defer></script>
 </body>
 </html>

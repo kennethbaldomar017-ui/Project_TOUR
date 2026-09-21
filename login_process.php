@@ -87,6 +87,50 @@ if ($result->num_rows === 1) {
             unset($_SESSION['lockout_attempts']);
         }
 
+        if ($role === ROLE_SUPERADMIN) {
+            $superadminAvailable = superadmin_lock_available($conn, (int)$user_id);
+            if ($superadminAvailable !== true) {
+                $stmt->close();
+                if ($superadminAvailable === false) {
+                    log_audit_action($conn, $row, $row, 'blocked_superadmin_login', null, STATUS_ACTIVE, null, null, 'Another superadmin is already logged in; notification shown before OTP');
+                    $_SESSION['form_error'] = 'Another superadmin is currently active. You were notified before email verification, so no OTP was sent.';
+                } else {
+                    $_SESSION['form_error'] = 'Unable to verify superadmin availability. Please try again.';
+                }
+                header('Location: login.php');
+                exit();
+            }
+        }
+
+        $trustedUser = trusted_device_user($conn);
+        if ($trustedUser && (int)$trustedUser['id'] === (int)$user_id) {
+            $_SESSION['user_id'] = (int)$row['id'];
+            $_SESSION['identifier'] = $identifier;
+            $_SESSION['username'] = $row['username'];
+            $_SESSION['role'] = $row['role'];
+            $_SESSION['logged_in'] = true;
+            $_SESSION['last_activity'] = time();
+            $_SESSION['first_name'] = $row['first_name'];
+            $_SESSION['last_name'] = $row['last_name'];
+
+            $presenceStmt = $conn->prepare('UPDATE users SET last_seen_at = NOW() WHERE id = ?');
+            if ($presenceStmt) {
+                $presenceStmt->bind_param('i', $user_id);
+                $presenceStmt->execute();
+                $presenceStmt->close();
+            }
+            log_audit_action($conn, $row, $row, 'login_success', null, STATUS_ACTIVE, null, null, 'Password and trusted device verified');
+            $_SESSION['success'] = 'Login successful! Welcome back.';
+            $stmt->close();
+            if (!empty($row['must_change_password'])) {
+                $_SESSION['force_pwd_change'] = true;
+                header('Location: change_password_authenticated.php');
+            } else {
+                header('Location: dashboard.php');
+            }
+            exit();
+        }
+
         $otp = (string)random_int(100000, 999999);
         $tokenHash = password_hash($otp, PASSWORD_DEFAULT);
         $conn->query('DELETE FROM otp_tokens WHERE user_id = ' . (int)$user_id . ' OR expires_at < NOW()');

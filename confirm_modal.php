@@ -7,6 +7,10 @@
         </div>
         <div class="modal-body">
             <p class="modal-message" id="confirmModalMessage"></p>
+            <div class="confirm-reason-field" id="confirmReasonField" hidden>
+                <label for="confirmReasonInput">Deletion reason</label>
+                <textarea id="confirmReasonInput" maxlength="255" placeholder="Enter a reason" rows="3"></textarea>
+            </div>
             <p class="modal-hint">Type your password below to confirm this action.</p>
             <div class="password-wrapper">
                 <input type="password" id="confirmPasswordInput" autocomplete="new-password" placeholder="Your password" autofocus>
@@ -20,4 +24,4 @@
         </div>
     </div>
 </div>
-<script src="js/confirm.js" defer></script>
+<script src="js/confirm.js?v=20260918" defer></script>

@@ -2,7 +2,13 @@
 require_once 'config.php';
 $actor = require_superadmin($conn);
 $requests = [];
-$stmt = $conn->prepare("SELECT id, target_id, target_id_number, target_username, target_name, target_email, target_role, target_status, requested_by, reason, created_at FROM deletion_requests WHERE status = 'pending' ORDER BY created_at ASC");
+$stmt = $conn->prepare("SELECT dr.id, dr.target_id, dr.target_id_number, dr.target_username, dr.target_name, dr.target_email, dr.target_role, dr.target_status, dr.requested_by, dr.reason, dr.created_at,
+    COALESCE(NULLIF(TRIM(CONCAT_WS(' ', requester.first_name, requester.last_name)), ''), requester.username, CONCAT('#', dr.requested_by)) AS requested_by_name,
+    requester.username AS requested_by_username
+    FROM deletion_requests dr
+    LEFT JOIN users requester ON requester.id = dr.requested_by
+    WHERE dr.status = 'pending'
+    ORDER BY dr.created_at ASC");
 $stmt->execute();
 $requests = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
@@ -37,7 +43,7 @@ $token = csrf_token();
                 <?php foreach ($requests as $request): ?>
                     <tr>
                         <td><strong><?= e($request['target_name']); ?></strong><span><?= e($request['target_id_number']); ?> · <?= e($request['target_username']); ?> · <?= e($request['target_email']); ?></span></td>
-                        <td>#<?= (int)$request['requested_by']; ?></td>
+                        <td><strong><?= e($request['requested_by_name']); ?></strong><span><?= e($request['requested_by_username'] ?? ''); ?></span></td>
                         <td><?= e($request['reason']); ?></td>
                         <td><?= e($request['created_at']); ?></td>
                         <td>

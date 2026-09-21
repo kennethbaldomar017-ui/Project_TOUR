@@ -11,8 +11,20 @@
         if (errorBox) errorBox.textContent = '';
         const input = document.getElementById('confirmPasswordInput');
         if (input) input.value = '';
+        const reasonField = document.getElementById('confirmReasonField');
+        const reasonInput = document.getElementById('confirmReasonInput');
+        const requiresReason = pendingForm && pendingForm.getAttribute('data-confirm-requires-reason') === 'true';
+        if (reasonField) reasonField.hidden = !requiresReason;
+        if (reasonInput) {
+            reasonInput.value = '';
+            reasonInput.required = requiresReason;
+        }
         document.getElementById('confirmModal').hidden = false;
-        if (input) setTimeout(function () { input.focus(); }, 50);
+        if (requiresReason && reasonInput) {
+            setTimeout(function () { reasonInput.focus(); }, 50);
+        } else if (input) {
+            setTimeout(function () { input.focus(); }, 50);
+        }
     }
 
     function hideModal() {
@@ -20,11 +32,20 @@
         pendingForm = null;
         const input = document.getElementById('confirmPasswordInput');
         if (input) input.value = '';
+        const reasonInput = document.getElementById('confirmReasonInput');
+        if (reasonInput) {
+            reasonInput.value = '';
+            reasonInput.required = false;
+        }
     }
 
     function openConfirm(event) {
         const form = event.target;
         if (!form || form.tagName !== 'FORM') return;
+
+        document.querySelectorAll('.role-change-modal[open]').forEach(function (dialog) {
+            dialog.close();
+        });
 
         const title = form.getAttribute('data-confirm-title') || 'Confirm action';
         const message = form.getAttribute('data-confirm-message') || 'Please confirm this action.';
@@ -95,9 +116,18 @@
         confirmOk.addEventListener('click', function () {
             if (!pendingForm) return;
 
+            const form = pendingForm;
             const input = document.getElementById('confirmPasswordInput');
             const password = input ? input.value : '';
+            const reasonInput = document.getElementById('confirmReasonInput');
+            const requiresReason = form.getAttribute('data-confirm-requires-reason') === 'true';
             const errorBox = document.getElementById('confirmModalError');
+
+            if (requiresReason && (!reasonInput || !reasonInput.value.trim())) {
+                if (errorBox) errorBox.textContent = 'Please enter a deletion reason.';
+                if (reasonInput) reasonInput.focus();
+                return;
+            }
 
             if (!password) {
                 if (errorBox) errorBox.textContent = 'Please enter your password to confirm this action.';
@@ -105,17 +135,27 @@
                 return;
             }
 
-            let hidden = pendingForm.querySelector('input[name="confirm_password"]');
+            let hidden = form.querySelector('input[name="confirm_password"]');
             if (!hidden) {
                 hidden = document.createElement('input');
                 hidden.type = 'hidden';
                 hidden.name = 'confirm_password';
-                pendingForm.appendChild(hidden);
+                form.appendChild(hidden);
             }
             hidden.value = password;
 
+            if (requiresReason) {
+                let reason = form.querySelector('input[name="reason"]');
+                if (!reason) {
+                    reason = document.createElement('input');
+                    reason.type = 'hidden';
+                    reason.name = 'reason';
+                    form.appendChild(reason);
+                }
+                reason.value = reasonInput.value.trim();
+            }
 
-            const form = pendingForm;
+
             hideModal();
             form.submit();
         });

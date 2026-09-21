@@ -79,7 +79,7 @@ $supplierCount = count(array_unique($supplierNames));
                 <label>Supplier<input type="text" name="supplier" placeholder="Supplier or shop"></label>
                 <label>Reference No.<input type="text" name="reference_no" placeholder="Invoice / receipt"></label>
                 <label>Purchased At<input type="datetime-local" name="purchased_at" value="<?= e(date('Y-m-d\TH:i')); ?>"></label>
-                <button class="btn btn-primary span-2" type="submit" <?= !$parts ? 'disabled' : ''; ?>>Record Purchase</button>
+                <button class="btn btn-primary" type="submit" <?= !$parts ? 'disabled' : ''; ?>>Record Purchase</button>
             </form>
 
             <div class="table-wrap">

@@ -5,12 +5,14 @@ $is_logged_in = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true
 $is_admin_shell = $is_logged_in && isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'superadmin'], true);
 $display_name = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')) ?: ($_SESSION['username'] ?? $_SESSION['identifier'] ?? 'Account');
 $avatar_letters = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $display_name), 0, 2));
+$header_actor = $actor ?? ($currentUser ?? null);
+$can_manage_privileges = $header_actor && ($header_actor['role'] === ROLE_SUPERADMIN || user_has_privilege($conn, $header_actor, PRIV_MANAGE_PRIVILEGES));
 ?>
 <script src="js/security.js" defer></script>
 <?php if ($is_admin_shell): ?>
     <div class="admin-layout">
         <aside class="admin-sidebar">
-            <div class="admin-brand">PRIME<span>.</span></div>
+            <div class="admin-brand"><span class="admin-brand-mark" aria-hidden="true">&#9881;</span><span>PRIME.</span></div>
             <p class="admin-sidebar-label">MENU</p>
             <nav class="admin-sidebar-nav" aria-label="Dashboard navigation">
                 <a class="<?= $current_page === 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php"><span class="sidebar-icon">&#9632;</span>Dashboard</a>
@@ -19,8 +21,10 @@ $avatar_letters = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $display_nam
                 <a class="<?= $current_page === 'builds.php' ? 'active' : ''; ?>" href="builds.php"><span class="sidebar-icon">&#9881;</span>PC Builds</a>
                 <p class="admin-sidebar-label">MANAGEMENT</p>
                 <a class="<?= $current_page === 'admin_users.php' ? 'active' : ''; ?>" href="admin_users.php"><span class="sidebar-icon">&#9673;</span>Users</a>
-                <a class="<?= $current_page === 'audit_logs.php' ? 'active' : ''; ?>" href="audit_logs.php"><span class="sidebar-icon">&#9776;</span>Audit Logs</a>
-                <?php if (in_array($_SESSION['role'], ['admin', 'superadmin'], true)): ?>
+                <?php if ($_SESSION['role'] === 'superadmin'): ?>
+                    <a class="<?= $current_page === 'audit_logs.php' ? 'active' : ''; ?>" href="audit_logs.php"><span class="sidebar-icon">&#9776;</span>Audit Logs</a>
+                <?php endif; ?>
+                <?php if ($can_manage_privileges): ?>
                     <a class="<?= $current_page === 'manage_privileges.php' ? 'active' : ''; ?>" href="manage_privileges.php"><span class="sidebar-icon">&#9881;</span>Privileges</a>
                 <?php endif; ?>
                 <?php if ($_SESSION['role'] === 'superadmin'): ?>
@@ -42,7 +46,9 @@ $avatar_letters = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $display_nam
                         <span aria-hidden="true">&#9906;</span>
                         <input type="search" name="search" placeholder="Search users..." aria-label="Search users">
                     </form>
-                    <a href="audit_logs.php" class="admin-topbar-icon" aria-label="Notifications">&#128276;</a>
+                    <?php if ($_SESSION['role'] === 'superadmin'): ?>
+                        <a href="audit_logs.php" class="admin-topbar-icon" aria-label="Notifications">&#128276;</a>
+                    <?php endif; ?>
                     <details class="admin-account-menu">
                         <summary class="admin-avatar" aria-label="Open account menu"><?= e($avatar_letters); ?></summary>
                         <div class="admin-account-dropdown">

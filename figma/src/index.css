@@ -1,0 +1,265 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+:root {
+  --background: #080b12;
+  --foreground: #e2e8f0;
+  --card: #0f1522;
+  --card-foreground: #e2e8f0;
+  --primary: #00d4ff;
+  --primary-foreground: #080b12;
+  --secondary: #1a2035;
+  --secondary-foreground: #94a3b8;
+  --muted: #131927;
+  --muted-foreground: #64748b;
+  --accent: #39ff14;
+  --accent-foreground: #080b12;
+  --border: rgba(0, 212, 255, 0.12);
+  --ring: #00d4ff;
+  --radius: 4px;
+  --danger: #ff3b5c;
+  --warning: #ffaa00;
+  --success: #39ff14;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Outfit', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection,
+input::selection,
+textarea::selection,
+[contenteditable="true"]::selection {
+  background: rgba(0, 212, 255, 0.32);
+  color: var(--foreground);
+}
+
+::-moz-selection,
+input::-moz-selection,
+textarea::-moz-selection,
+[contenteditable="true"]::-moz-selection {
+  background: rgba(0, 212, 255, 0.32);
+  color: var(--foreground);
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: 'Rajdhani', sans-serif;
+  letter-spacing: 0.03em;
+}
+
+.font-mono, code, pre {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--background); }
+::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.25); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.5); }
+
+/* Glow utilities */
+.glow-cyan { box-shadow: 0 0 20px rgba(0, 212, 255, 0.15); }
+.glow-cyan-sm { box-shadow: 0 0 8px rgba(0, 212, 255, 0.2); }
+.text-glow { text-shadow: 0 0 20px rgba(0, 212, 255, 0.5); }
+.border-cyan { border-color: var(--primary); }
+
+.card-bg {
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.nav-item-active {
+  background: rgba(0, 212, 255, 0.08);
+  border-left: 2px solid var(--primary);
+  color: var(--primary);
+}
+
+.nav-item {
+  border-left: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+.nav-item:hover {
+  background: rgba(0, 212, 255, 0.04);
+  border-left-color: rgba(0, 212, 255, 0.3);
+  color: var(--foreground);
+}
+
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  opacity: 0.6;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-primary:hover {
+  background: #22e0ff;
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.4);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted-foreground);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-ghost:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 59, 92, 0.3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-danger:hover {
+  background: rgba(255, 59, 92, 0.1);
+  border-color: var(--danger);
+}
+
+.input-field {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s ease;
+}
+.input-field:focus {
+  background: var(--secondary) !important;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+}
+.input-field::placeholder { color: var(--muted-foreground); }
+
+/* Autofill Fix for Dark Theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+input:-internal-autofill-selected {
+  -webkit-text-fill-color: var(--foreground) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--secondary) inset !important;
+  box-shadow: 0 0 0 1000px var(--secondary) inset !important;
+  transition: background-color 50000s ease-in-out 0s !important;
+  caret-color: var(--foreground) !important;
+}
+
+input:-moz-autofill,
+textarea:-moz-autofill,
+select:-moz-autofill {
+  background-color: var(--secondary) !important;
+  color: var(--foreground) !important;
+}
+
+select.input-field option {
+  background: var(--card);
+  color: var(--foreground);
+}
+
+.table-row-hover:hover {
+  background: rgba(0, 212, 255, 0.03);
+}
+
+.badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 2px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(8, 11, 18, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.modal-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 2);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.progress-bar {
+  background: var(--secondary);
+  border-radius: 2px;
+  height: 4px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--primary), #0088ff);
+}
+
+@media (max-width: 768px) {
+  .sidebar { width: 56px; }
+  .sidebar-label { display: none; }
+  .sidebar-logo-text { display: none; }
+}

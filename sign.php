@@ -2,6 +2,7 @@
 require_once 'config.php';
 $registration_values = $_SESSION['registration_values'] ?? [];
 $registration_step = max(1, min(4, (int)($_SESSION['registration_step'] ?? 1)));
+$nextIdNumber = next_static_id_number($conn);
 unset($_SESSION['registration_values'], $_SESSION['registration_step']);
 ?>
 <!DOCTYPE html>
@@ -9,7 +10,7 @@ unset($_SESSION['registration_values'], $_SESSION['registration_step']);
 <head>
     <meta charset="utf-8">
     <title>Register | PRIME.</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=20260916">
     <script src="js/validation.js" defer></script>
     <script src="js/confirm.js" defer></script>
 </head>
@@ -50,9 +51,9 @@ unset($_SESSION['registration_values'], $_SESSION['registration_step']);
                             <div class="form-grid">
                                 <div>
                                     <label>ID Number <span class="req">*</span></label>
-                                    <input type="text" name="id_number" id="id_number" placeholder="xxxx-xxxx" required
-                                           pattern="[0-9]{4}-[0-9]{4}" title="Format: 4 digits - 4 digits (e.g., 2025-0001)">
-                                    <div class="help-text">Format: 4 digits - 4 digits (e.g., 2025-0001)</div>
+                                     <input type="text" name="id_number" id="id_number" value="<?= e($nextIdNumber); ?>" readonly required
+                                         pattern="[0-9]{4}-[0-9]{4}" title="Generated automatically">
+                                     <div class="help-text">Generated automatically in sequence.</div>
                                 </div>
                                 <div>
                                     <label>First Name <span class="req">*</span></label>
@@ -164,7 +165,7 @@ unset($_SESSION['registration_values'], $_SESSION['registration_step']);
                                     <label>Password <span class="req">*</span></label>
                                     <div class="password-wrapper">
                                         <input type="password" name="password" id="password" required minlength="8" maxlength="64" placeholder="Min. 8 characters">
-                                        <span class="toggle-pwd" onclick="togglePassword('password')">Show</span>
+                                        <span class="toggle-pwd" data-target="#password">Show</span>
                                     </div>
                                     <meter id="pwdStrength" min="0" max="4" value="0"></meter>
                                     <div id="pwdText" class="help-text">Password strength: Very weak</div>
@@ -173,7 +174,7 @@ unset($_SESSION['registration_values'], $_SESSION['registration_step']);
                                     <label>Re-enter Password <span class="req">*</span></label>
                                     <div class="password-wrapper">
                                         <input type="password" name="confirm_password" id="confirm_password" required minlength="8" maxlength="64" placeholder="Confirm password">
-                                        <span class="toggle-pwd" onclick="togglePassword('confirm_password')">Show</span>
+                                        <span class="toggle-pwd" data-target="#confirm_password">Show</span>
                                     </div>
                                     <div id="pwdMatch" class="match-indicator"></div>
                                 </div>
@@ -282,6 +283,21 @@ unset($_SESSION['registration_values'], $_SESSION['registration_step']);
         showStep(currentStep);
 
         function nextStep(step) {
+            // CRITICAL: Before moving to step 3 or 4, validate that steps 1 and 2 are complete
+            if (step === 3 || step === 4) {
+                if (!validateStep(1)) {
+                    alert('Please complete Personal Information first.');
+                    showStep(1);
+                    return;
+                }
+                if (!validateStep(2)) {
+                    alert('Please complete Address Information first.');
+                    showStep(2);
+                    return;
+                }
+            }
+
+            // Validate current step before proceeding
             if (validateStep(currentStep)) {
                 showStep(step);
             }
@@ -578,18 +594,6 @@ unset($_SESSION['registration_values'], $_SESSION['registration_step']);
 
         function isValidEmail(email) {
             return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-        }
-
-        function togglePassword(fieldId) {
-            const field = document.getElementById(fieldId);
-            const toggle = field.parentElement.querySelector('.toggle-pwd');
-            if (field.type === 'password') {
-                field.type = 'text';
-                toggle.textContent = 'Hide';
-            } else {
-                field.type = 'password';
-                toggle.textContent = 'Show';
-            }
         }
 
         // Password strength meter

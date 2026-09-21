@@ -143,6 +143,18 @@ try {
         'id_number' => $idNumber,
         'role' => $role,
     ];
+
+    if ($role === ROLE_SUPERADMIN) {
+        clear_user_presence($conn, (int)$actor['id']);
+        release_superadmin_lock($conn, (int)$actor['id'], session_id());
+        session_unset();
+        session_destroy();
+        session_start();
+        $_SESSION['success'] = 'The new superadmin was created. You have been logged out for security.';
+        header('Location: login.php');
+        exit;
+    }
+
     header('Location: create_admin_result.php');
     exit;
 } catch (Throwable $e) {

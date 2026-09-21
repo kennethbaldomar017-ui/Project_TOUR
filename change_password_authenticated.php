@@ -66,7 +66,6 @@ $questionOptions = security_question_options();
                     </div>
                 </div>
                 <div class="account-step-actions">
-                    <a class="muted-link" href="edit_info.php">Back to account settings</a>
                     <button type="button" class="btn btn-primary" id="nextChangeStep">Next: Security Questions</button>
                 </div>
                 <div class="account-step-error" id="passwordStepError" role="alert"></div>
@@ -93,7 +92,7 @@ $questionOptions = security_question_options();
                     <?php endfor; ?>
                 </fieldset>
                 <div class="account-step-actions">
-                    <button type="button" class="btn btn-ghost" id="previousChangeStep">Back</button>
+                    <button type="button" class="btn btn-ghost" id="previousPasswordStep">Back</button>
                     <button type="submit" class="btn btn-primary">Save Password</button>
                 </div>
                 <div class="account-step-error" id="securityStepError" role="alert"></div>
@@ -109,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const passwordStep = document.querySelector('[data-change-step="1"]');
     const securityStep = document.querySelector('[data-change-step="2"]');
     const nextButton = document.getElementById('nextChangeStep');
-    const previousButton = document.getElementById('previousChangeStep');
+    const previousPasswordButton = document.getElementById('previousPasswordStep');
     const indicators = document.querySelectorAll('[data-change-step-indicator]');
     const securityFields = securityStep.querySelectorAll('select, input');
     const mustChange = <?= $mustChange ? 'true' : 'false'; ?>;
@@ -125,17 +124,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    document.querySelectorAll('.toggle-pwd-icon').forEach(function (button) {
-        button.addEventListener('click', function () {
-            const wrapper = button.closest('.password-wrapper');
-            const field = wrapper ? wrapper.querySelector('input') : null;
-            if (!field) return;
-            const isPassword = field.type === 'password';
-            field.type = isPassword ? 'text' : 'password';
-            button.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
-        });
-    });
-
     nextButton.addEventListener('click', function () {
         const current = document.getElementById('current_password');
         const password = document.getElementById('new_password').value;
@@ -148,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!error) setStep(2);
     });
 
-    previousButton.addEventListener('click', function () { setStep(1); });
+    previousPasswordButton.addEventListener('click', function () { setStep(1); });
     form.addEventListener('submit', function (event) {
         const questions = form.querySelectorAll('[name^="question"]');
         const answers = form.querySelectorAll('[name^="auth_a"]');

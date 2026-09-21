@@ -1,0 +1,10 @@
+{
+  "description": "Manage computer parts and builds efficiently with a user-friendly interface, featuring a superadmin side for enhanced control and oversight.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

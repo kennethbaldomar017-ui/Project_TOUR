@@ -20,7 +20,7 @@ if (!$target) {
 }
 
 $canReset = ($actor['role'] === ROLE_SUPERADMIN)
-    || ($actor['role'] === ROLE_ADMIN && $target['role'] === ROLE_USER);
+    || ($actor['role'] === ROLE_ADMIN && $target['role'] !== ROLE_SUPERADMIN);
 
 if (!$canReset) {
     log_audit_action($conn, $actor, $target, 'failed_authorization', $target['status'], $target['status'], null, null, 'Password reset denied');
