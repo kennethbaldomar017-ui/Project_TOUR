@@ -109,6 +109,9 @@ function ensure_rbac_schema(mysqli $conn): void {
     if (!isset($columns['last_seen_at'])) {
         $alter[] = "ADD COLUMN last_seen_at DATETIME DEFAULT NULL AFTER must_change_password";
     }
+    if (!isset($columns['session_version'])) {
+        $alter[] = "ADD COLUMN session_version INT UNSIGNED NOT NULL DEFAULT 1 AFTER last_seen_at";
+    }
 
     if ($alter) {
         $conn->query('ALTER TABLE users ' . implode(', ', $alter));
@@ -270,7 +273,7 @@ function current_app_user(mysqli $conn): ?array {
         return null;
     }
 
-    $stmt = $conn->prepare("SELECT id, username, first_name, last_name, role, status, must_change_password FROM users WHERE id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT id, username, first_name, last_name, role, status, must_change_password, session_version FROM users WHERE id = ? LIMIT 1");
     if (!$stmt) {
         return null;
     }
@@ -285,8 +288,29 @@ function current_app_user(mysqli $conn): ?array {
         return null;
     }
 
+    if (!isset($_SESSION['session_version']) || (int)$_SESSION['session_version'] !== (int)$user['session_version']) {
+        if (($_SESSION['role'] ?? '') === ROLE_SUPERADMIN) {
+            release_superadmin_lock($conn, (int)$_SESSION['user_id'], session_id());
+        }
+        clear_user_presence($conn, (int)$_SESSION['user_id']);
+        session_unset();
+        session_destroy();
+        return null;
+    }
+
+    if ($user['role'] === ROLE_SUPERADMIN) {
+        $superadminLock = acquire_superadmin_lock($conn, (int)$user['id'], session_id());
+        if ($superadminLock !== true) {
+            clear_user_presence($conn, (int)$user['id']);
+            session_unset();
+            session_destroy();
+            return null;
+        }
+    }
+
     $_SESSION['role'] = $user['role'];
     $_SESSION['username'] = $user['username'];
+    $_SESSION['session_version'] = (int)$user['session_version'];
     $_SESSION['last_activity'] = time();
     $presenceStmt = $conn->prepare('UPDATE users SET last_seen_at = NOW() WHERE id = ?');
     if ($presenceStmt) {

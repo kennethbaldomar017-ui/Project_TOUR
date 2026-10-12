@@ -34,11 +34,27 @@ $defaultPassword = generate_default_password();
 try {
     $conn->begin_transaction();
 
-    $stmt = $conn->prepare('UPDATE users SET password = ?, must_change_password = 1 WHERE id = ?');
+    $stmt = $conn->prepare('UPDATE users SET password = ?, must_change_password = 1, session_version = session_version + 1 WHERE id = ?');
     $hashedPassword = password_hash($defaultPassword, PASSWORD_DEFAULT);
     $stmt->bind_param('si', $hashedPassword, $targetId);
     $stmt->execute();
     $stmt->close();
+
+    $trustedDeviceStmt = $conn->prepare('DELETE FROM trusted_devices WHERE user_id = ?');
+    if ($trustedDeviceStmt) {
+        $trustedDeviceStmt->bind_param('i', $targetId);
+        $trustedDeviceStmt->execute();
+        $trustedDeviceStmt->close();
+    }
+
+    if ($target['role'] === ROLE_SUPERADMIN) {
+        $lockStmt = $conn->prepare("UPDATE superadmin_lock SET active_user_id = NULL, session_id = NULL WHERE lock_name = 'superadmin' AND active_user_id = ?");
+        if ($lockStmt) {
+            $lockStmt->bind_param('i', $targetId);
+            $lockStmt->execute();
+            $lockStmt->close();
+        }
+    }
 
     if (!log_audit_action($conn, $actor, $target, 'password_reset', $target['status'], $target['status'], null, null, 'Superadmin/privileged reset with temporary password')) {
         throw new RuntimeException('Could not write audit log.');

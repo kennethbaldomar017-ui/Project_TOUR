@@ -58,6 +58,7 @@ CREATE TABLE `users` (
   `auth_q3` varchar(255) DEFAULT NULL,
   `auth_a3` varchar(255) DEFAULT NULL,
   `must_change_password` tinyint(1) NOT NULL DEFAULT 0,
+  `session_version` int(10) UNSIGNED NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 

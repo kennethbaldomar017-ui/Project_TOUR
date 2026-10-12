@@ -2682,6 +2682,7 @@ body:not(:has(.admin-layout)) .edit-info-card .auth-subtitle { color: var(--mute
 .admin-layout .badge.status-online { background: rgba(57, 255, 20, 0.10) !important; color: #39ff14 !important; border-color: rgba(57, 255, 20, 0.55) !important; }
 .admin-layout .badge.status-offline { background: #1a2035 !important; color: #94a3b8 !important; border-color: #334155 !important; }
 .admin-layout .badge.status-blocked { background: rgba(255, 59, 92, 0.10) !important; color: #ff6b83 !important; border-color: rgba(255, 107, 131, 0.65) !important; }
+.admin-layout .badge.status-pending { background: rgba(255, 193, 7, 0.12) !important; color: #ffd166 !important; border-color: rgba(255, 209, 102, 0.65) !important; }
 .admin-layout .btn-primary,
 .admin-layout .compact-link,
 .admin-layout .tech-heading-action { background: #00d4ff !important; color: #080b12 !important; border-color: #00d4ff !important; }

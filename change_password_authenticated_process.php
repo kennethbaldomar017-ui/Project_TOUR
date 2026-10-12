@@ -52,10 +52,11 @@ $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
 $hashedAnswers = array_map(static function (string $answer): string {
     return password_hash($answer, PASSWORD_DEFAULT);
 }, $answers);
-$stmt = $conn->prepare('UPDATE users SET password = ?, must_change_password = 0, auth_q1 = ?, auth_a1 = ?, auth_q2 = ?, auth_a2 = ?, auth_q3 = ?, auth_a3 = ? WHERE id = ?');
+$stmt = $conn->prepare('UPDATE users SET password = ?, must_change_password = 0, session_version = session_version + 1, auth_q1 = ?, auth_a1 = ?, auth_q2 = ?, auth_a2 = ?, auth_q3 = ?, auth_a3 = ? WHERE id = ?');
 $stmt->bind_param('sssssssi', $passwordHash, $questions[0], $hashedAnswers[0], $questions[1], $hashedAnswers[1], $questions[2], $hashedAnswers[2], $actor['id']);
 $stmt->execute();
 $stmt->close();
+$_SESSION['session_version'] = (int)($actor['session_version'] ?? 1) + 1;
 log_audit_action($conn, $actor, $actor, 'password_change', null, null, null, null, 'User changed their own password');
 
 unset($_SESSION['force_pwd_change']);

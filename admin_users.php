@@ -69,7 +69,10 @@ $offset = ($page - 1) * $perPage;
 $sql = "SELECT id, id_number, username, first_name, last_name, email, role, status,
            must_change_password, birthdate, age, street, barangay, city, province, country, zip,
            auth_q1, auth_a1, auth_q2, auth_a2, auth_q3, auth_a3,
-           CASE WHEN status = 'active' AND last_seen_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE) THEN 1 ELSE 0 END AS is_online
+         CASE WHEN status = 'active'
+                 AND last_seen_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+                 AND (role <> 'superadmin' OR id = (SELECT active_user_id FROM superadmin_lock WHERE lock_name = 'superadmin' LIMIT 1))
+             THEN 1 ELSE 0 END AS is_online
     FROM users";
 if ($where) {
     $sql .= ' WHERE ' . implode(' AND ', $where);

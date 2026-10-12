@@ -39,7 +39,7 @@ if (!empty($_SESSION['lock_until']) && time() < $_SESSION['lock_until']) {
 }
 
 // Prepare statement to check if user exists and get their account state
-$stmt = $conn->prepare("SELECT id, username, email, password, first_name, last_name, role, status, deactivated_until, must_change_password FROM users WHERE id_number = ? OR username = ? LIMIT 1");
+$stmt = $conn->prepare("SELECT id, username, email, password, first_name, last_name, role, status, deactivated_until, must_change_password, session_version FROM users WHERE id_number = ? OR username = ? LIMIT 1");
 if (!$stmt) {
     $_SESSION['form_error'] = "Database error. Please try again.";
     header('Location: login.php');
@@ -104,12 +104,28 @@ if ($result->num_rows === 1) {
 
         $trustedUser = trusted_device_user($conn);
         if ($trustedUser && (int)$trustedUser['id'] === (int)$user_id) {
+            if ($role === ROLE_SUPERADMIN) {
+                $superadminLock = acquire_superadmin_lock($conn, (int)$user_id, session_id());
+                if ($superadminLock !== true) {
+                    $stmt->close();
+                    if ($superadminLock === false) {
+                        log_audit_action($conn, $row, $row, 'blocked_superadmin_login', null, STATUS_ACTIVE, null, null, 'Another superadmin is already logged in; trusted device login blocked');
+                        $_SESSION['form_error'] = 'Another superadmin is already logged in. Please wait for that superadmin to log out.';
+                    } else {
+                        $_SESSION['form_error'] = 'Unable to verify superadmin availability. Please try again.';
+                    }
+                    header('Location: login.php');
+                    exit();
+                }
+            }
+
             $_SESSION['user_id'] = (int)$row['id'];
             $_SESSION['identifier'] = $identifier;
             $_SESSION['username'] = $row['username'];
             $_SESSION['role'] = $row['role'];
             $_SESSION['logged_in'] = true;
             $_SESSION['last_activity'] = time();
+            $_SESSION['session_version'] = (int)$row['session_version'];
             $_SESSION['first_name'] = $row['first_name'];
             $_SESSION['last_name'] = $row['last_name'];
 

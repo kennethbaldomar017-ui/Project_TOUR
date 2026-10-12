@@ -53,9 +53,17 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     $hash = password_hash($pwd, PASSWORD_DEFAULT);
-    $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+    $stmt = $conn->prepare("UPDATE users SET password = ?, session_version = session_version + 1 WHERE id = ?");
     $stmt->bind_param('si', $hash, $uid);
     $stmt->execute();
+    $stmt->close();
+
+    $trustedDeviceStmt = $conn->prepare('DELETE FROM trusted_devices WHERE user_id = ?');
+    if ($trustedDeviceStmt) {
+      $trustedDeviceStmt->bind_param('i', $uid);
+      $trustedDeviceStmt->execute();
+      $trustedDeviceStmt->close();
+    }
     
     unset($_SESSION['pwd_reset_user'], $_SESSION['pwd_reset_started']);
     $_SESSION['success'] = 'Password successfully changed. Please login with your new password.';

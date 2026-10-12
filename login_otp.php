@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Enter the six-digit verification code.';
     } else {
         $userId = (int)$pending['user_id'];
-        $stmt = $conn->prepare('SELECT id, username, first_name, last_name, role, status, must_change_password FROM users WHERE id = ? LIMIT 1');
+        $stmt = $conn->prepare('SELECT id, username, first_name, last_name, role, status, must_change_password, session_version FROM users WHERE id = ? LIMIT 1');
         $stmt->bind_param('i', $userId);
         $stmt->execute();
         $user = $stmt->get_result()->fetch_assoc();
@@ -60,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['role'] = $user['role'];
             $_SESSION['logged_in'] = true;
             $_SESSION['last_activity'] = time();
+            $_SESSION['session_version'] = (int)$user['session_version'];
             $_SESSION['first_name'] = $user['first_name'];
             $_SESSION['last_name'] = $user['last_name'];
             unset($_SESSION['pending_login']);
